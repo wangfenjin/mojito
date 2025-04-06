@@ -1,12 +1,25 @@
-# mojito - a golang http server template
+# Mojito
 
-* https://github.com/golang-standards/project-layout
-* https://github.com/cloudwego/hertz
-* https://github.com/spf13/viper
-* https://github.com/go-gorm/gorm
-* https://github.com/air-verse/air
-* https://github.com/Orange-OpenSource/hurl
+[![Go Report Card](https://goreportcard.com/badge/github.com/wangfenjin/mojito)](https://goreportcard.com/report/github.com/wangfenjin/mojito)
+[![License](https://img.shields.io/github/license/wangfenjin/mojito)](https://github.com/wangfenjin/mojito/blob/main/LICENSE)
 
-## Reference
-* https://github.com/fastapi/fastapi
-* https://github.com/fastapi/full-stack-fastapi-template
+Mojito is a production-ready HTTP server template in Go, designed to be compatible with the [FastAPI Full Stack Template](https://github.com/fastapi/full-stack-fastapi-template). It provides a robust foundation for building scalable web applications.
+
+## Features
+
+- 📦 Standard Go project layout following [golang-standards](https://github.com/golang-standards/project-layout)
+- 🚀 High-performance HTTP framework using [Hertz](https://github.com/cloudwego/hertz)
+- 🔧 Flexible configuration management with [Viper](https://github.com/spf13/viper)
+- 💾 Database operations using [GORM](https://github.com/go-gorm/gorm)
+- 🔄 Live reload during development with [Air](https://github.com/air-verse/air)
+- 🧪 API testing made easy with [Hurl](https://github.com/Orange-OpenSource/hurl)
+
+## Roadmap
+
+The following features are planned for future releases:
+
+- 🔧 Enhanced configuration management with environment-specific configs and secrets handling
+- 📚 OpenAPI/Swagger documentation auto-generation from code
+- 🗃️ Database migration tool integration for version-controlled schema changes
+- 🐳 Docker support with multi-stage builds and optimized images
+- 🔄 GitHub Actions CI/CD pipeline with automated testing and deployment
