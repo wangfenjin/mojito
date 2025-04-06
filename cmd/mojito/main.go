@@ -30,6 +30,7 @@ func main() {
 
 	// Create repositories
 	userRepo := repository.NewUserRepository(db)
+	itemRepo := repository.NewItemRepository(db)
 
 	// Create Hertz server
 	h := server.Default()
@@ -37,6 +38,7 @@ func main() {
 	// Add middleware to inject repositories into context
 	h.Use(func(ctx context.Context, c *app.RequestContext) {
 		ctx = context.WithValue(ctx, "userRepository", userRepo)
+		ctx = context.WithValue(ctx, "itemRepository", itemRepo)
 		c.Next(ctx)
 	})
 

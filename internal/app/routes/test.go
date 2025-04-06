@@ -21,11 +21,15 @@ type EmptyRequest struct{}
 
 func cleanupHandler(ctx context.Context, _ EmptyRequest) (interface{}, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
 	// Clean up test data
-	err := userRepo.CleanupTestData(ctx)
-	if err != nil {
-		return nil, fmt.Errorf("error cleaning up test data: %w", err)
+	if err := userRepo.CleanupTestData(ctx); err != nil {
+		return nil, fmt.Errorf("error cleaning up user data: %w", err)
+	}
+
+	if err := itemRepo.CleanupTestData(ctx); err != nil {
+		return nil, fmt.Errorf("error cleaning up item data: %w", err)
 	}
 
 	return map[string]string{"message": "Test data cleaned up"}, nil

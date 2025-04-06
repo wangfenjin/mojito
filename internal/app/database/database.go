@@ -32,7 +32,7 @@ func NewConnection(config *Config) (*gorm.DB, error) {
 	}
 
 	// Auto migrate the schema
-	err = db.AutoMigrate(&models.User{})
+	err = db.AutoMigrate(&models.User{}, &models.Item{})
 	if err != nil {
 		log.Printf("Failed to migrate database: %v", err)
 		return nil, err
