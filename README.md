@@ -5,6 +5,7 @@
 * https://github.com/spf13/viper
 * https://github.com/go-gorm/gorm
 * https://github.com/air-verse/air
+* https://github.com/Orange-OpenSource/hurl
 
 ## Reference
 * https://github.com/fastapi/fastapi

@@ -6,6 +6,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/models"
+	"github.com/wangfenjin/mojito/internal/app/utils"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
@@ -23,7 +24,7 @@ func NewUserRepository(db *gorm.DB) *UserRepository {
 // Create creates a new user in the database
 func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	// Hash the password
-	hashedPassword, err := hashPassword(user.Password)
+	hashedPassword, err := utils.HashPassword(user.Password)
 	if err != nil {
 		return err
 	}
@@ -31,6 +32,21 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 
 	// Create the user
 	result := r.db.WithContext(ctx).Create(user)
+	return result.Error
+}
+
+// Update updates a user in the database
+func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
+	// If password is being updated, hash it
+	if user.Password != "" {
+		hashedPassword, err := utils.HashPassword(user.Password)
+		if err != nil {
+			return err
+		}
+		user.Password = hashedPassword
+	}
+
+	result := r.db.WithContext(ctx).Save(user)
 	return result.Error
 }
 
@@ -67,21 +83,6 @@ func (r *UserRepository) List(ctx context.Context, skip, limit int) ([]*models.U
 	return users, result.Error
 }
 
-// Update updates a user in the database
-func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
-	// If password is being updated, hash it
-	if user.Password != "" {
-		hashedPassword, err := hashPassword(user.Password)
-		if err != nil {
-			return err
-		}
-		user.Password = hashedPassword
-	}
-
-	result := r.db.WithContext(ctx).Save(user)
-	return result.Error
-}
-
 // Delete deletes a user from the database
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 	result := r.db.WithContext(ctx).Delete(&models.User{}, "id = ?", id)
@@ -101,7 +102,7 @@ func (r *UserRepository) CleanupTestData(ctx context.Context) error {
 	return err
 }
 
-// Helper function to hash passwords
+// Remove the old helper functions
 func hashPassword(password string) (string, error) {
 	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
 	return string(bytes), err
