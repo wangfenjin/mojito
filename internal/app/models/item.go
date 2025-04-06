@@ -7,7 +7,14 @@ import (
 	"gorm.io/gorm"
 )
 
-type Item struct {
+type itemBase struct{}
+
+func (itemBase) TableName() string {
+	return "items"
+}
+
+type ItemV1 struct {
+	itemBase
 	ID          uuid.UUID `gorm:"type:uuid;primary_key;default:gen_random_uuid()"`
 	Title       string    `gorm:"not null"`
 	Description string
@@ -15,3 +22,5 @@ type Item struct {
 	UpdatedAt   time.Time
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
+
+type Item = ItemV1

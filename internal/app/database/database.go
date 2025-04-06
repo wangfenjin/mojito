@@ -3,7 +3,10 @@ package database
 import (
 	"fmt"
 	"log"
+	"os"
 
+	"github.com/go-gormigrate/gormigrate/v2"
+	"github.com/wangfenjin/mojito/internal/app/database/migrations"
 	"github.com/wangfenjin/mojito/internal/app/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -31,12 +34,22 @@ func NewConnection(config *Config) (*gorm.DB, error) {
 		return nil, err
 	}
 
-	// Auto migrate the schema
-	err = db.AutoMigrate(&models.User{}, &models.Item{})
-	if err != nil {
-		log.Printf("Failed to migrate database: %v", err)
-		return nil, err
+	// Run migrations in development environment
+	if os.Getenv("ENV") != "production" {
+		if err := RunMigrations(db); err != nil {
+			log.Printf("Failed to run migrations: %v", err)
+			return nil, err
+		}
+		log.Printf("Migrations completed successfully")
 	}
 
 	return db, nil
+}
+
+func RunMigrations(db *gorm.DB) error {
+	// Get all registered model versions
+	registeredVersions := models.GetModelVersions()
+	migrations := migrations.GenerateMigration(registeredVersions)
+	m := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
+	return m.Migrate()
 }
