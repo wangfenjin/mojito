@@ -1,0 +1,4 @@
+-- Migration: 1.0.1
+BEGIN;
+DROP TABLE IF EXISTS "items" CASCADE;
+COMMIT;
