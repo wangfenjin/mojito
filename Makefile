@@ -1,6 +1,6 @@
 # note: call scripts from /scripts
 
-.PHONY: build run clean watch
+.PHONY: build run clean watch test test-verbose test-coverage
 
 # Build the mojito application
 build:
@@ -30,3 +30,27 @@ watch:
 		go install github.com/air-verse/air@latest; \
 	fi
 	@air -c .air.toml
+
+# Run tests
+test:
+	@echo "Running tests..."
+	@go test ./internal/... ./cmd/...
+
+# Run tests with verbose output
+test-verbose:
+	@echo "Running tests with verbose output..."
+	@go test -v ./internal/... ./cmd/...
+
+# Run tests with coverage report
+test-coverage:
+	@echo "Running tests with coverage report..."
+	@go test -cover ./internal/... ./cmd/...
+	@echo "For detailed coverage report, run: make test-coverage-html"
+
+# Generate HTML coverage report
+test-coverage-html:
+	@echo "Generating HTML coverage report..."
+	@go test -coverprofile=coverage.out ./internal/... ./cmd/...
+	@go tool cover -html=coverage.out -o coverage.html
+	@echo "Coverage report generated: coverage.html"
+	@open coverage.html
