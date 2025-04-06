@@ -108,7 +108,7 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 // Update testTokenHandler signature to match middleware
 func testTokenHandler(ctx context.Context, _ interface{}) (interface{}, error) {
 	c := ctx.Value("requestContext").(*app.RequestContext)
-	
+
 	// Get token from Authorization header
 	authHeader := c.GetHeader("Authorization")
 	if len(authHeader) == 0 {

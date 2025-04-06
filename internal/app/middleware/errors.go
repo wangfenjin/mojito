@@ -1,42 +1,46 @@
 package middleware
 
-import "github.com/cloudwego/hertz/pkg/protocol/consts"
+import (
+	"fmt"
 
-// BadRequestError represents a 400 error
-type BadRequestError struct {
-	Message string
+	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
+)
+
+type APIError struct {
+	Code    int    `json:"code"`
+	Message string `json:"message"`
 }
 
-func (e *BadRequestError) Error() string {
-	return e.Message
+// Implement error interface for APIError
+func (e *APIError) Error() string {
+	return fmt.Sprintf("code: %d, message: %s", e.Code, e.Message)
 }
 
-// NewBadRequestError creates a new BadRequestError
-func NewBadRequestError(message string) *BadRequestError {
-	return &BadRequestError{Message: message}
+func NewUnauthorizedError(message string) *APIError {
+	return &APIError{
+		Code:    consts.StatusUnauthorized,
+		Message: message,
+	}
 }
 
-// GetStatusCode returns the HTTP status code
-func (e *BadRequestError) GetStatusCode() int {
-	return consts.StatusBadRequest
+func NewBadRequestError(message string) *APIError {
+	return &APIError{
+		Code:    consts.StatusBadRequest,
+		Message: message,
+	}
 }
 
-
-// UnauthorizedError represents a 401 error
-type UnauthorizedError struct {
-	Message string
+func NewForbiddenError(message string) *APIError {
+	return &APIError{
+		Code:    consts.StatusForbidden,
+		Message: message,
+	}
 }
 
-func (e *UnauthorizedError) Error() string {
-	return e.Message
-}
-
-// NewUnauthorizedError creates a new UnauthorizedError
-func NewUnauthorizedError(message string) *UnauthorizedError {
-	return &UnauthorizedError{Message: message}
-}
-
-// GetStatusCode returns the HTTP status code
-func (e *UnauthorizedError) GetStatusCode() int {
-	return 401
+func AbortWithError(c *app.RequestContext, err *APIError) {
+	c.JSON(err.Code, map[string]interface{}{
+		"error": err.Message,
+	})
+	c.Abort()
 }

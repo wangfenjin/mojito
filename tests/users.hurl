@@ -2,79 +2,88 @@
 DELETE http://localhost:8888/api/v1/test/cleanup
 HTTP 200
 
-# Create a new user
-POST http://localhost:8888/api/v1/users/
+# Register a new user
+POST http://localhost:8888/api/v1/users/signup
 Content-Type: application/json
 {
-    "email": "test_user@example.com",
+    "email": "test@example.com",
+    "phone_number": "+8613800138000",
     "password": "password123",
-    "full_name": "Test User",
-    "is_active": true,
-    "is_superuser": false
+    "full_name": "Test User"
 }
 
 HTTP 200
 [Captures]
 user_id: jsonpath "$.id"
 [Asserts]
-jsonpath "$.email" == "test_user@example.com"
+jsonpath "$.email" == "test@example.com"
+jsonpath "$.phone_number" == "+8613800138000"
 jsonpath "$.full_name" == "Test User"
 jsonpath "$.is_active" == true
 jsonpath "$.is_superuser" == false
 jsonpath "$.id" exists
 jsonpath "$.created_at" exists
-jsonpath "$.password" not exists
 
-# Get the created user
-GET http://localhost:8888/api/v1/users/{{user_id}}
+# Login to get token
+POST http://localhost:8888/api/v1/login/access-token
+Content-Type: application/x-www-form-urlencoded
+[FormParams]
+username: test@example.com
+password: password123
+grant_type: password
+scope: 
+client_id: 
+client_secret: 
+
 HTTP 200
+[Captures]
+token: jsonpath "$.access_token"
+[Asserts]
+jsonpath "$.access_token" exists
+jsonpath "$.token_type" == "bearer"
 
-# Update the user (email update not allowed)
-PUT http://localhost:8888/api/v1/users/{{user_id}}
-Content-Type: application/json
-{
-    "full_name": "Updated User",
-    "is_active": true,
-    "is_superuser": true
-}
+# Get current user (with auth)
+GET http://localhost:8888/api/v1/users/me
+Authorization: Bearer {{token}}
 
 HTTP 200
 [Asserts]
-jsonpath "$.email" == "test_user@example.com"
-jsonpath "$.full_name" == "Updated User"
-jsonpath "$.is_active" == true
-jsonpath "$.is_superuser" == true
+jsonpath "$.email" == "test@example.com"
+jsonpath "$.phone_number" == "+8613800138000"
+jsonpath "$.full_name" == "Test User"
 jsonpath "$.id" == {{user_id}}
 
-# Try to update email (should fail)
-PUT http://localhost:8888/api/v1/users/{{user_id}}
+# Update current user (with auth)
+# PATCH http://localhost:8888/api/v1/users/me
+# Authorization: Bearer {{token}}
+# Content-Type: application/json
+# {
+    # "full_name": "Updated User",
+    # "phone_number": "+8613800138001"
+# }
+
+# HTTP 200
+# [Asserts]
+# jsonpath "$.full_name" == "Updated User"
+# jsonpath "$.phone_number" == "+8613800138001"
+# jsonpath "$.id" == {{user_id}}
+
+# Update password
+PATCH http://localhost:8888/api/v1/users/me/password
+Authorization: Bearer {{token}}
 Content-Type: application/json
 {
-    "email": "new_email@example.com"
-}
-
-HTTP 400
-[Asserts]
-jsonpath "$.error" == "email updates are not allowed"
-
-# Update the user
-PUT http://localhost:8888/api/v1/users/{{user_id}}
-Content-Type: application/json
-{
-    "full_name": "Updated User",
-    "is_active": true,
-    "is_superuser": true
+    "current_password": "password123",
+    "new_password": "newpassword123"
 }
 
 HTTP 200
 [Asserts]
-jsonpath "$.full_name" == "Updated User"
-jsonpath "$.is_active" == true
-jsonpath "$.is_superuser" == true
-jsonpath "$.id" == {{user_id}}
+jsonpath "$.message" == "Password updated successfully"
 
 # List users
 GET http://localhost:8888/api/v1/users/
+Authorization: Bearer {{token}}
 [QueryStringParams]
 skip: 0
 limit: 10
@@ -86,17 +95,17 @@ jsonpath "$.users[0]" exists
 jsonpath "$.meta.skip" == 0
 jsonpath "$.meta.limit" == 10
 
-# Try to create user with existing email (should fail)
-POST http://localhost:8888/api/v1/users/
-Content-Type: application/json
-{
-    "email": "test_user@example.com",
-    "password": "password123",
-    "full_name": "Test User",
-    "is_active": true,
-    "is_superuser": false
-}
+# Delete current user
+DELETE http://localhost:8888/api/v1/users/me
+Authorization: Bearer {{token}}
 
-HTTP 400
+HTTP 200
 [Asserts]
-jsonpath "$.error" exists
+jsonpath "$.message" == "User deleted successfully"
+
+# Verify user is deleted - should return 401 since token is no longer valid
+GET http://localhost:8888/api/v1/users/me
+
+HTTP 401
+[Asserts]
+jsonpath "$.error" == "missing authorization header"

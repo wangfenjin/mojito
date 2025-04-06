@@ -2,8 +2,10 @@ package middleware
 
 import (
 	"context"
+	"log"
 
 	"github.com/cloudwego/hertz/pkg/app"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 )
 
 // WithResponse creates middleware that handles writing the response
@@ -19,23 +21,23 @@ func WithResponse[T any](handler func(ctx context.Context, req T) (interface{}, 
 
 		resp, err := handler(ctx, req)
 		if err != nil {
-			switch e := err.(type) {
-			case *BadRequestError:
-				c.JSON(e.GetStatusCode(), map[string]interface{}{
-					"error": e.Error(),
+			// Try to convert to APIError
+			if apiErr, ok := err.(*APIError); ok {
+				log.Printf("API Error: %v, Code: %d, Path: %s, Method: %s",
+					apiErr.Message, apiErr.Code, c.Path(), c.Method())
+				c.JSON(apiErr.Code, map[string]interface{}{
+					"error": apiErr.Message,
 				})
-			case *UnauthorizedError:
-				c.JSON(e.GetStatusCode(), map[string]interface{}{
-					"error": e.Error(),
-				})
-			default:
-				c.JSON(500, map[string]interface{}{
+			} else {
+				log.Printf("Internal Server Error: %v, Path: %s, Method: %s",
+					err, c.Path(), c.Method())
+				c.JSON(consts.StatusInternalServerError, map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
 			return
 		}
 
-		c.JSON(200, resp)
+		c.JSON(consts.StatusOK, resp)
 	}
 }

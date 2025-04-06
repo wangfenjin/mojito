@@ -30,10 +30,10 @@ type UserV1 struct {
 // User represents a user in the system
 type UserV2 struct {
 	userBase
-	ID          uuid.UUID `gorm:"type:uuid;primary_key"`
-	Email       string    `gorm:"uniqueIndex;not null"`
-	PhoneNumber string    `gorm:"uniqueIndex"` // New field
-	Password    string    `gorm:"not null"`
+	ID          uuid.UUID `gorm:"type:uuid;primary_key;not null"`
+	Email       string    `gorm:"uniqueIndex:idx_users_email;type:varchar(255);not null" validate:"required,email"`
+	PhoneNumber string    `gorm:"uniqueIndex:idx_users_phone;type:varchar(20)" validate:"omitempty,e164"`
+	Password    string    `gorm:"type:varchar(255);not null"`
 	FullName    string    `gorm:"not null"`
 	IsActive    bool      `gorm:"default:true"`
 	IsSuperuser bool      `gorm:"default:false"`

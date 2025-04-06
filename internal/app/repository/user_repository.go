@@ -7,7 +7,6 @@ import (
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/models"
 	"github.com/wangfenjin/mojito/internal/app/utils"
-	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
 
@@ -35,41 +34,39 @@ func (r *UserRepository) Create(ctx context.Context, user *models.User) error {
 	return result.Error
 }
 
-// Update updates a user in the database
-func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
-	// If password is being updated, hash it
-	if user.Password != "" {
-		hashedPassword, err := utils.HashPassword(user.Password)
-		if err != nil {
-			return err
-		}
-		user.Password = hashedPassword
-	}
-
-	result := r.db.WithContext(ctx).Save(user)
-	return result.Error
-}
-
-// GetByID retrieves a user by ID
-func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+// GetByEmail retrieves a user by email
+func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
 	var user models.User
-	result := r.db.WithContext(ctx).First(&user, "id = ?", id)
+	result := r.db.WithContext(ctx).First(&user, "email = ? AND is_active = ?", email, true)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil // User not found
+			return nil, nil
 		}
 		return nil, result.Error
 	}
 	return &user, nil
 }
 
-// GetByEmail retrieves a user by email
-func (r *UserRepository) GetByEmail(ctx context.Context, email string) (*models.User, error) {
+// GetByPhone retrieves a user by phone number
+func (r *UserRepository) GetByPhone(ctx context.Context, phone string) (*models.User, error) {
 	var user models.User
-	result := r.db.WithContext(ctx).First(&user, "email = ?", email)
+	result := r.db.WithContext(ctx).First(&user, "phone_number = ? AND is_active = ?", phone, true)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil, nil // User not found
+			return nil, nil
+		}
+		return nil, result.Error
+	}
+	return &user, nil
+}
+
+// GetByID retrieves a user by ID
+func (r *UserRepository) GetByID(ctx context.Context, id uuid.UUID) (*models.User, error) {
+	var user models.User
+	result := r.db.WithContext(ctx).First(&user, "id = ? AND is_active = ?", id, true)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return nil, nil
 		}
 		return nil, result.Error
 	}
@@ -83,10 +80,27 @@ func (r *UserRepository) List(ctx context.Context, skip, limit int) ([]*models.U
 	return users, result.Error
 }
 
-// Delete deletes a user from the database
+// Delete deletes a user and their associated items from the database
 func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
-	result := r.db.WithContext(ctx).Delete(&models.User{}, "id = ?", id)
-	return result.Error
+	// Start a transaction
+	tx := r.db.WithContext(ctx).Begin()
+	if tx.Error != nil {
+		return tx.Error
+	}
+
+	// Delete associated items first
+	if err := tx.Delete(&models.Item{}, "owner_id = ?", id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	// Delete the user
+	if err := tx.Delete(&models.User{}, "id = ?", id).Error; err != nil {
+		tx.Rollback()
+		return err
+	}
+
+	return tx.Commit().Error
 }
 
 // CleanupTestData removes all test data from the database
@@ -102,14 +116,8 @@ func (r *UserRepository) CleanupTestData(ctx context.Context) error {
 	return err
 }
 
-// Remove the old helper functions
-func hashPassword(password string) (string, error) {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	return string(bytes), err
-}
-
-// Helper function to check if password matches hash
-func checkPasswordHash(password, hash string) bool {
-	err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(password))
-	return err == nil
+// Update updates an existing user in the database
+func (r *UserRepository) Update(ctx context.Context, user *models.User) error {
+	result := r.db.WithContext(ctx).Save(user)
+	return result.Error
 }

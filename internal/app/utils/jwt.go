@@ -1,9 +1,11 @@
 package utils
 
 import (
+	"fmt"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/uuid"
 )
 
 var jwtSecret = []byte("your-secret-key") // In production, this should be in config
@@ -42,4 +44,18 @@ func ValidateToken(tokenString string) (*Claims, error) {
 	}
 
 	return nil, jwt.ErrSignatureInvalid
+}
+
+// GetValidatedUserID returns a parsed UUID from the UserID claim
+func (c *Claims) GetValidatedUserID() (uuid.UUID, error) {
+	if c.UserID == "" {
+		return uuid.Nil, fmt.Errorf("user ID is missing in token claims")
+	}
+
+	id, err := uuid.Parse(c.UserID)
+	if err != nil {
+		return uuid.Nil, fmt.Errorf("invalid user ID format in token: %w", err)
+	}
+
+	return id, nil
 }

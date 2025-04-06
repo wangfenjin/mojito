@@ -23,13 +23,13 @@ func cleanupHandler(ctx context.Context, _ EmptyRequest) (interface{}, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
-	// Clean up test data
-	if err := userRepo.CleanupTestData(ctx); err != nil {
-		return nil, fmt.Errorf("error cleaning up user data: %w", err)
-	}
-
+	// cleanup item first, because item has foreign key constraint with user
 	if err := itemRepo.CleanupTestData(ctx); err != nil {
 		return nil, fmt.Errorf("error cleaning up item data: %w", err)
+	}
+
+	if err := userRepo.CleanupTestData(ctx); err != nil {
+		return nil, fmt.Errorf("error cleaning up user data: %w", err)
 	}
 
 	return map[string]string{"message": "Test data cleaned up"}, nil

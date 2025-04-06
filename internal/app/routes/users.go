@@ -9,24 +9,43 @@ import (
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
 	"github.com/wangfenjin/mojito/internal/app/repository"
+	"github.com/wangfenjin/mojito/internal/app/utils"
 )
 
-// Request structs for users routes
+// CreateUserRequest
 type CreateUserRequest struct {
 	Email       string `json:"email" binding:"required,email"`
-	Password    string `json:"password" binding:"required"`
+	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
+	Password    string `json:"password" binding:"required,min=8"`
 	FullName    string `json:"full_name" binding:"required"`
 	IsActive    bool   `json:"is_active"`
 	IsSuperuser bool   `json:"is_superuser"`
 }
 
+// UpdateUserRequest
 type UpdateUserRequest struct {
-	ID          string `path:"id" binding:"required"`
-	Email       string `json:"email" binding:"email"`
+	ID          string `path:"id" binding:"required,uuid"`
+	Email       string `json:"email" binding:"omitempty,email"`
+	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
 	Password    string `json:"password"`
 	FullName    string `json:"full_name"`
 	IsActive    bool   `json:"is_active"`
 	IsSuperuser bool   `json:"is_superuser"`
+}
+
+// RegisterUserRequest
+type RegisterUserRequest struct {
+	Email       string `json:"email" binding:"required,email"`
+	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
+	Password    string `json:"password" binding:"required,min=8"`
+	FullName    string `json:"full_name" binding:"required"`
+}
+
+// Update the original UpdateUserMeRequest
+type UpdateUserMeRequest struct {
+	Email       string `json:"email" binding:"omitempty,email"`
+	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
+	FullName    string `json:"full_name"`
 }
 
 type GetUserRequest struct {
@@ -40,32 +59,108 @@ type ListUsersRequest struct {
 
 // RegisterUsersRoutes registers all user related routes
 func RegisterUsersRoutes(h *server.Hertz) {
-	usersGroup := h.Group("/api/v1/users")
+	usersGroup := h.Group("/api/v1/users", middleware.RequireAuth())
 	{
-		usersGroup.POST("/",
-			middleware.WithRequest(CreateUserRequest{}),
-			middleware.WithResponse(createUserHandler))
+		// Protected routes (require auth)
+		usersGroup.GET("/",
+			middleware.WithRequest(ListUsersRequest{}),
+			middleware.WithResponse(listUsersHandler))
 
 		usersGroup.GET("/me",
 			middleware.WithResponse(getCurrentUserHandler))
+
+		usersGroup.DELETE("/me",
+			middleware.WithResponse(deleteCurrentUserHandler))
+
+		usersGroup.PATCH("/me",
+			middleware.WithRequest(UpdateUserMeRequest{}),
+			middleware.WithResponse(updateCurrentUserHandler))
+
+		usersGroup.PATCH("/me/password",
+			middleware.WithRequest(UpdatePasswordRequest{}),
+			middleware.WithResponse(updatePasswordHandler))
 
 		usersGroup.GET("/:id",
 			middleware.WithRequest(GetUserRequest{}),
 			middleware.WithResponse(getUserHandler))
 
-		usersGroup.PUT("/:id",
+		usersGroup.PATCH("/:id",
 			middleware.WithRequest(UpdateUserRequest{}),
 			middleware.WithResponse(updateUserHandler))
-
-		usersGroup.GET("/",
-			middleware.WithRequest(ListUsersRequest{}),
-			middleware.WithResponse(listUsersHandler))
 	}
+
+	// Public routes (no auth required)
+	h.POST("/api/v1/users/signup",
+		middleware.WithRequest(RegisterUserRequest{}),
+		middleware.WithResponse(registerUserHandler))
 }
 
-// User handlers
-func createUserHandler(ctx context.Context, req CreateUserRequest) (interface{}, error) {
-	// Get the user repository from the context
+type UpdatePasswordRequest struct {
+	CurrentPassword string `json:"current_password" binding:"required"`
+	NewPassword     string `json:"new_password" binding:"required"`
+}
+
+// Add new handlers
+func deleteCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, error) {
+	// Get current user ID from context
+	userID := ctx.Value("user_id").(string)
+	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, middleware.NewBadRequestError("invalid user ID")
+	}
+
+	err = userRepo.Delete(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error deleting user: %w", err)
+	}
+
+	return map[string]string{
+		"message": "User deleted successfully",
+	}, nil
+}
+
+func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (interface{}, error) {
+	userID := ctx.Value("user_id").(string)
+	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, middleware.NewBadRequestError("invalid user ID")
+	}
+
+	// Get user with current password hash from DB
+	user, err := userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user: %w", err)
+	}
+
+	// Verify current password against stored hash
+	if !utils.CheckPasswordHash(req.CurrentPassword, user.Password) {
+		return nil, middleware.NewBadRequestError("incorrect current password")
+	}
+
+	// Hash the new password
+	hashedNewPassword, err := utils.HashPassword(req.NewPassword)
+	if err != nil {
+		return nil, fmt.Errorf("error hashing password: %w", err)
+	}
+
+	// Update with new password hash
+	user.Password = hashedNewPassword
+	err = userRepo.Update(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("error updating password: %w", err)
+	}
+
+	return map[string]string{
+		"message": "Password updated successfully",
+	}, nil
+}
+
+// Update handler functions
+func registerUserHandler(ctx context.Context, req RegisterUserRequest) (interface{}, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	// Check if user with this email already exists
@@ -74,29 +169,38 @@ func createUserHandler(ctx context.Context, req CreateUserRequest) (interface{},
 		return nil, fmt.Errorf("error checking existing user: %w", err)
 	}
 	if existingUser != nil {
-		// Return a specific error type that middleware can convert to 400
 		return nil, middleware.NewBadRequestError("user with this email already exists")
 	}
 
-	// Create a new user model from the request
-	user := &models.User{
-		Email:       req.Email,
-		Password:    req.Password, // Will be hashed in the repository
-		FullName:    req.FullName,
-		IsActive:    req.IsActive,
-		IsSuperuser: req.IsSuperuser,
+	// Check phone number if provided
+	if req.PhoneNumber != "" {
+		existingUser, err = userRepo.GetByPhone(ctx, req.PhoneNumber)
+		if err != nil {
+			return nil, fmt.Errorf("error checking existing phone: %w", err)
+		}
+		if existingUser != nil {
+			return nil, middleware.NewBadRequestError("user with this phone number already exists")
+		}
 	}
 
-	// Save the user to the database
+	user := &models.User{
+		Email:       req.Email,
+		PhoneNumber: req.PhoneNumber,
+		Password:    req.Password,
+		FullName:    req.FullName,
+		IsActive:    true,
+		IsSuperuser: false,
+	}
+
 	err = userRepo.Create(ctx, user)
 	if err != nil {
 		return nil, fmt.Errorf("error creating user: %w", err)
 	}
 
-	// Return the created user (without password)
 	return map[string]interface{}{
 		"id":           user.ID,
 		"email":        user.Email,
+		"phone_number": user.PhoneNumber,
 		"full_name":    user.FullName,
 		"is_active":    user.IsActive,
 		"is_superuser": user.IsSuperuser,
@@ -104,11 +208,87 @@ func createUserHandler(ctx context.Context, req CreateUserRequest) (interface{},
 	}, nil
 }
 
-func getCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, error) {
-	// TODO: Get user ID from JWT token
-	return nil, middleware.NewBadRequestError("not implemented: getCurrentUserHandler")
+// Update response maps in other handlers to include phone_number
+func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (interface{}, error) {
+	userID := ctx.Value("user_id").(string)
+	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, middleware.NewBadRequestError("invalid user ID")
+	}
+
+	user, err := userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user: %w", err)
+	}
+
+	if req.Email != "" {
+		user.Email = req.Email
+	}
+	if req.FullName != "" {
+		user.FullName = req.FullName
+	}
+	if req.PhoneNumber != "" {
+		// Check if phone number is already used by another user
+		existingUser, err := userRepo.GetByPhone(ctx, req.PhoneNumber)
+		if err != nil {
+			return nil, fmt.Errorf("error checking existing phone: %w", err)
+		}
+		if existingUser != nil && existingUser.ID != user.ID {
+			return nil, middleware.NewBadRequestError("phone number already in use")
+		}
+		user.PhoneNumber = req.PhoneNumber
+	}
+
+	err = userRepo.Update(ctx, user)
+	if err != nil {
+		return nil, fmt.Errorf("error updating user: %w", err)
+	}
+
+	return map[string]interface{}{
+		"id":           user.ID,
+		"email":        user.Email,
+		"phone_number": user.PhoneNumber,
+		"full_name":    user.FullName,
+		"is_active":    user.IsActive,
+		"is_superuser": user.IsSuperuser,
+		"created_at":   user.CreatedAt,
+		"updated_at":   user.UpdatedAt,
+	}, nil
 }
 
+// Update getCurrentUserHandler response
+func getCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, error) {
+	userID := ctx.Value("user_id").(string)
+	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+
+	id, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, middleware.NewBadRequestError("invalid user ID")
+	}
+
+	user, err := userRepo.GetByID(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user: %w", err)
+	}
+	if user == nil {
+		return nil, middleware.NewBadRequestError("user not found")
+	}
+
+	return map[string]interface{}{
+		"id":           user.ID,
+		"email":        user.Email,
+		"phone_number": user.PhoneNumber,
+		"full_name":    user.FullName,
+		"is_active":    user.IsActive,
+		"is_superuser": user.IsSuperuser,
+		"created_at":   user.CreatedAt,
+		"updated_at":   user.UpdatedAt,
+	}, nil
+}
+
+// Update getUserHandler response
 func getUserHandler(ctx context.Context, req GetUserRequest) (interface{}, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
@@ -128,6 +308,7 @@ func getUserHandler(ctx context.Context, req GetUserRequest) (interface{}, error
 	return map[string]interface{}{
 		"id":           user.ID,
 		"email":        user.Email,
+		"phone_number": user.PhoneNumber,
 		"full_name":    user.FullName,
 		"is_active":    user.IsActive,
 		"is_superuser": user.IsSuperuser,
@@ -136,8 +317,23 @@ func getUserHandler(ctx context.Context, req GetUserRequest) (interface{}, error
 	}, nil
 }
 
+// Update updateUserHandler to handle phone number
 func updateUserHandler(ctx context.Context, req UpdateUserRequest) (interface{}, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+
+	// check if user is superuser
+	userID := ctx.Value("user_id").(string)
+	currentID, err := uuid.Parse(userID)
+	if err != nil {
+		return nil, middleware.NewBadRequestError("invalid user ID format")
+	}
+	currentUser, err := userRepo.GetByID(ctx, currentID)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user: %w", err)
+	}
+	if !currentUser.IsSuperuser {
+		return nil, middleware.NewForbiddenError("only superusers can update other users")
+	}
 
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
@@ -160,7 +356,12 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (interface{},
 
 	// Update fields if provided
 	if req.Password != "" {
-		user.Password = req.Password
+		// Hash the password
+		hashedPassword, err := utils.HashPassword(req.Password)
+		if err != nil {
+			return nil, fmt.Errorf("error hashing password: %w", err)
+		}
+		user.Password = hashedPassword
 	}
 	if req.FullName != "" {
 		user.FullName = req.FullName
@@ -177,6 +378,7 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (interface{},
 	return map[string]interface{}{
 		"id":           user.ID,
 		"email":        user.Email,
+		"phone_number": user.PhoneNumber,
 		"full_name":    user.FullName,
 		"is_active":    user.IsActive,
 		"is_superuser": user.IsSuperuser,
@@ -185,6 +387,7 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (interface{},
 	}, nil
 }
 
+// Update listUsersHandler response
 func listUsersHandler(ctx context.Context, req ListUsersRequest) (interface{}, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
@@ -207,6 +410,7 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (interface{}, e
 		userList[i] = map[string]interface{}{
 			"id":           user.ID,
 			"email":        user.Email,
+			"phone_number": user.PhoneNumber,
 			"full_name":    user.FullName,
 			"is_active":    user.IsActive,
 			"is_superuser": user.IsSuperuser,

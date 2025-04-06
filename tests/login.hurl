@@ -3,14 +3,12 @@ DELETE http://localhost:8888/api/v1/test/cleanup
 HTTP 200
 
 # Create a test user
-POST http://localhost:8888/api/v1/users/
+POST http://localhost:8888/api/v1/users/signup
 Content-Type: application/json
 {
     "email": "test@example.com",
     "password": "password123",
-    "full_name": "Test User",
-    "is_active": true,
-    "is_superuser": false
+    "full_name": "Test User"
 }
 
 HTTP 200
@@ -21,6 +19,10 @@ Content-Type: application/x-www-form-urlencoded
 [FormParams]
 username: test@example.com
 password: password123
+grant_type: password
+scope: 
+client_id: 
+client_secret: 
 
 HTTP 200
 [Captures]
@@ -32,9 +34,9 @@ jsonpath "$.token_type" == "bearer"
 # Test token validation
 GET http://localhost:8888/api/v1/login/test-token
 Authorization: Bearer {{access_token}}
-
 HTTP 200
 [Asserts]
+jsonpath "$.user_id" exists
 jsonpath "$.email" == "test@example.com"
 
 # Test invalid credentials
@@ -43,6 +45,7 @@ Content-Type: application/x-www-form-urlencoded
 [FormParams]
 username: test@example.com
 password: wrongpassword
+grant_type: password
 
 HTTP 400
 [Asserts]
@@ -59,3 +62,20 @@ POST http://localhost:8888/api/v1/password-recovery/nonexistent@example.com
 HTTP 400
 [Asserts]
 jsonpath "$.error" == "user not found"
+
+# Test reset password
+POST http://localhost:8888/api/v1/reset-password/
+Content-Type: application/json
+{
+    "token": "some-reset-token",
+    "password": "newpassword123"
+}
+HTTP 200
+[Asserts]
+jsonpath "$.message" == "password reset successful"
+
+# Test password recovery HTML content
+POST http://localhost:8888/api/v1/password-recovery-html-content/test@example.com
+HTTP 200
+[Asserts]
+jsonpath "$.html_content" exists
