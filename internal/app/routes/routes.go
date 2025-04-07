@@ -10,4 +10,5 @@ func RegisterRoutes(h *server.Hertz) {
 	RegisterLoginRoutes(h)
 	RegisterUsersRoutes(h)
 	RegisterItemsRoutes(h)
+	RegisterDocsRoutes(h)
 }
