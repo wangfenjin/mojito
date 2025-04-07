@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/google/uuid"
@@ -10,6 +11,27 @@ import (
 	"github.com/wangfenjin/mojito/internal/app/models"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 )
+
+// RegisterItemsRoutes registers all item related routes
+func RegisterItemsRoutes(h *server.Hertz) {
+	itemsGroup := h.Group("/api/v1/items", middleware.RequireAuth())
+	{
+		itemsGroup.POST("/",
+			middleware.WithHandler(createItemHandler))
+
+		itemsGroup.GET("/:id",
+			middleware.WithHandler(getItemHandler))
+
+		itemsGroup.PUT("/:id",
+			middleware.WithHandler(updateItemHandler))
+
+		itemsGroup.DELETE("/:id",
+			middleware.WithHandler(deleteItemHandler))
+
+		itemsGroup.GET("/",
+			middleware.WithHandler(listItemsHandler))
+	}
+}
 
 // Request structs for items routes
 type CreateItemRequest struct {
@@ -32,34 +54,26 @@ type ListItemsRequest struct {
 	Limit int `query:"limit" binding:"min=1,max=100" default:"100"`
 }
 
-// RegisterItemsRoutes registers all item related routes
-func RegisterItemsRoutes(h *server.Hertz) {
-	itemsGroup := h.Group("/api/v1/items", middleware.RequireAuth())
-	{
-		itemsGroup.POST("/",
-			middleware.WithRequest(CreateItemRequest{}),
-			middleware.WithResponse(createItemHandler))
-
-		itemsGroup.GET("/:id",
-			middleware.WithRequest(GetItemRequest{}),
-			middleware.WithResponse(getItemHandler))
-
-		itemsGroup.PUT("/:id",
-			middleware.WithRequest(UpdateItemRequest{}),
-			middleware.WithResponse(updateItemHandler))
-
-		itemsGroup.DELETE("/:id",
-			middleware.WithRequest(GetItemRequest{}),
-			middleware.WithResponse(deleteItemHandler))
-
-		itemsGroup.GET("/",
-			middleware.WithRequest(ListItemsRequest{}),
-			middleware.WithResponse(listItemsHandler))
-	}
+// Item handlers
+// Add response structs
+type ItemResponse struct {
+	ID          uuid.UUID `json:"id"`
+	Title       string    `json:"title"`
+	Description string    `json:"description"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
 }
 
-// Item handlers
-func createItemHandler(ctx context.Context, req CreateItemRequest) (interface{}, error) {
+type ItemsResponse struct {
+	Items []ItemResponse `json:"items"`
+	Meta  struct {
+		Skip  int `json:"skip"`
+		Limit int `json:"limit"`
+	} `json:"meta"`
+}
+
+// Update handlers to use the new response types
+func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemResponse, error) {
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
 	// Get user_id from context instead of claims
@@ -79,15 +93,16 @@ func createItemHandler(ctx context.Context, req CreateItemRequest) (interface{},
 		return nil, fmt.Errorf("error creating item: %w", err)
 	}
 
-	return map[string]interface{}{
-		"id":          item.ID,
-		"title":       item.Title,
-		"description": item.Description,
-		"created_at":  item.CreatedAt,
+	return &ItemResponse{
+		ID:          item.ID,
+		Title:       item.Title,
+		Description: item.Description,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}, nil
 }
 
-func getItemHandler(ctx context.Context, req GetItemRequest) (interface{}, error) {
+func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, error) {
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
 	// Get user_id from context
@@ -111,16 +126,16 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (interface{}, error
 		return nil, middleware.NewBadRequestError("item not found or access denied")
 	}
 
-	return map[string]interface{}{
-		"id":          item.ID,
-		"title":       item.Title,
-		"description": item.Description,
-		"created_at":  item.CreatedAt,
-		"updated_at":  item.UpdatedAt,
+	return &ItemResponse{
+		ID:          item.ID,
+		Title:       item.Title,
+		Description: item.Description,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}, nil
 }
 
-func updateItemHandler(ctx context.Context, req UpdateItemRequest) (interface{}, error) {
+func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemResponse, error) {
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
 	id, err := uuid.Parse(req.ID)
@@ -148,16 +163,16 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (interface{},
 		return nil, fmt.Errorf("error updating item: %w", err)
 	}
 
-	return map[string]interface{}{
-		"id":          item.ID,
-		"title":       item.Title,
-		"description": item.Description,
-		"created_at":  item.CreatedAt,
-		"updated_at":  item.UpdatedAt,
+	return &ItemResponse{
+		ID:          item.ID,
+		Title:       item.Title,
+		Description: item.Description,
+		CreatedAt:   item.CreatedAt,
+		UpdatedAt:   item.UpdatedAt,
 	}, nil
 }
 
-func deleteItemHandler(ctx context.Context, req GetItemRequest) (interface{}, error) {
+func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageResponse, error) {
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
 	// Get user_id from context
@@ -186,12 +201,12 @@ func deleteItemHandler(ctx context.Context, req GetItemRequest) (interface{}, er
 		return nil, fmt.Errorf("error deleting item: %w", err)
 	}
 
-	return map[string]string{
-		"message": "item deleted successfully",
+	return &MessageResponse{
+		Message: "item deleted successfully",
 	}, nil
 }
 
-func listItemsHandler(ctx context.Context, req ListItemsRequest) (interface{}, error) {
+func listItemsHandler(ctx context.Context, req ListItemsRequest) (*ItemsResponse, error) {
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
 	// Get user_id from context
@@ -206,22 +221,25 @@ func listItemsHandler(ctx context.Context, req ListItemsRequest) (interface{}, e
 		return nil, fmt.Errorf("error listing items: %w", err)
 	}
 
-	itemList := make([]map[string]interface{}, len(items))
+	itemList := make([]ItemResponse, len(items))
 	for i, item := range items {
-		itemList[i] = map[string]interface{}{
-			"id":          item.ID,
-			"title":       item.Title,
-			"description": item.Description,
-			"created_at":  item.CreatedAt,
-			"updated_at":  item.UpdatedAt,
+		itemList[i] = ItemResponse{
+			ID:          item.ID,
+			Title:       item.Title,
+			Description: item.Description,
+			CreatedAt:   item.CreatedAt,
+			UpdatedAt:   item.UpdatedAt,
 		}
 	}
 
-	return map[string]interface{}{
-		"items": itemList,
-		"meta": map[string]interface{}{
-			"skip":  req.Skip,
-			"limit": req.Limit,
+	return &ItemsResponse{
+		Items: itemList,
+		Meta: struct {
+			Skip  int `json:"skip"`
+			Limit int `json:"limit"`
+		}{
+			Skip:  req.Skip,
+			Limit: req.Limit,
 		},
 	}, nil
 }

@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/google/uuid"
@@ -11,6 +12,38 @@ import (
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/utils"
 )
+
+// RegisterUsersRoutes registers all user related routes
+func RegisterUsersRoutes(h *server.Hertz) {
+	usersGroup := h.Group("/api/v1/users", middleware.RequireAuth())
+	{
+		// Protected routes (require auth)
+		usersGroup.GET("/",
+			middleware.WithHandler(listUsersHandler))
+
+		usersGroup.GET("/me",
+			middleware.WithHandlerEmpty(getCurrentUserHandler))
+
+		usersGroup.DELETE("/me",
+			middleware.WithHandlerEmpty(deleteCurrentUserHandler))
+
+		usersGroup.PATCH("/me",
+			middleware.WithHandler(updateCurrentUserHandler))
+
+		usersGroup.PATCH("/me/password",
+			middleware.WithHandler(updatePasswordHandler))
+
+		usersGroup.GET("/:id",
+			middleware.WithHandler(getUserHandler))
+
+		usersGroup.PATCH("/:id",
+			middleware.WithHandler(updateUserHandler))
+	}
+
+	// Public routes (no auth required)
+	h.POST("/api/v1/users/signup",
+		middleware.WithHandler(registerUserHandler))
+}
 
 // CreateUserRequest
 type CreateUserRequest struct {
@@ -57,42 +90,25 @@ type ListUsersRequest struct {
 	Limit int `query:"limit"`
 }
 
-// RegisterUsersRoutes registers all user related routes
-func RegisterUsersRoutes(h *server.Hertz) {
-	usersGroup := h.Group("/api/v1/users", middleware.RequireAuth())
-	{
-		// Protected routes (require auth)
-		usersGroup.GET("/",
-			middleware.WithRequest(ListUsersRequest{}),
-			middleware.WithResponse(listUsersHandler))
+// UserResponse represents the standard user response format
+type UserResponse struct {
+	ID          uuid.UUID `json:"id"`
+	Email       string    `json:"email"`
+	PhoneNumber string    `json:"phone_number,omitempty"`
+	FullName    string    `json:"full_name"`
+	IsActive    bool      `json:"is_active"`
+	IsSuperuser bool      `json:"is_superuser"`
+	CreatedAt   time.Time `json:"created_at"`
+	UpdatedAt   time.Time `json:"updated_at"`
+}
 
-		usersGroup.GET("/me",
-			middleware.WithResponse(getCurrentUserHandler))
-
-		usersGroup.DELETE("/me",
-			middleware.WithResponse(deleteCurrentUserHandler))
-
-		usersGroup.PATCH("/me",
-			middleware.WithRequest(UpdateUserMeRequest{}),
-			middleware.WithResponse(updateCurrentUserHandler))
-
-		usersGroup.PATCH("/me/password",
-			middleware.WithRequest(UpdatePasswordRequest{}),
-			middleware.WithResponse(updatePasswordHandler))
-
-		usersGroup.GET("/:id",
-			middleware.WithRequest(GetUserRequest{}),
-			middleware.WithResponse(getUserHandler))
-
-		usersGroup.PATCH("/:id",
-			middleware.WithRequest(UpdateUserRequest{}),
-			middleware.WithResponse(updateUserHandler))
-	}
-
-	// Public routes (no auth required)
-	h.POST("/api/v1/users/signup",
-		middleware.WithRequest(RegisterUserRequest{}),
-		middleware.WithResponse(registerUserHandler))
+// UsersResponse represents a paginated list of users
+type UsersResponse struct {
+	Users []UserResponse `json:"users"`
+	Meta  struct {
+		Skip  int `json:"skip"`
+		Limit int `json:"limit"`
+	} `json:"meta"`
 }
 
 type UpdatePasswordRequest struct {
@@ -101,7 +117,7 @@ type UpdatePasswordRequest struct {
 }
 
 // Add new handlers
-func deleteCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, error) {
+func deleteCurrentUserHandler(ctx context.Context) (*MessageResponse, error) {
 	// Get current user ID from context
 	userID := ctx.Value("user_id").(string)
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
@@ -115,13 +131,10 @@ func deleteCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, 
 	if err != nil {
 		return nil, fmt.Errorf("error deleting user: %w", err)
 	}
-
-	return map[string]string{
-		"message": "User deleted successfully",
-	}, nil
+	return &MessageResponse{Message: "User deleted successfully"}, nil
 }
 
-func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (interface{}, error) {
+func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*MessageResponse, error) {
 	userID := ctx.Value("user_id").(string)
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
@@ -154,13 +167,13 @@ func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (inte
 		return nil, fmt.Errorf("error updating password: %w", err)
 	}
 
-	return map[string]string{
-		"message": "Password updated successfully",
+	return &MessageResponse{
+		Message: "Password updated successfully",
 	}, nil
 }
 
 // Update handler functions
-func registerUserHandler(ctx context.Context, req RegisterUserRequest) (interface{}, error) {
+func registerUserHandler(ctx context.Context, req RegisterUserRequest) (*UserResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	// Check if user with this email already exists
@@ -197,19 +210,20 @@ func registerUserHandler(ctx context.Context, req RegisterUserRequest) (interfac
 		return nil, fmt.Errorf("error creating user: %w", err)
 	}
 
-	return map[string]interface{}{
-		"id":           user.ID,
-		"email":        user.Email,
-		"phone_number": user.PhoneNumber,
-		"full_name":    user.FullName,
-		"is_active":    user.IsActive,
-		"is_superuser": user.IsSuperuser,
-		"created_at":   user.CreatedAt,
+	return &UserResponse{
+		ID:          user.ID,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		FullName:    user.FullName,
+		IsActive:    user.IsActive,
+		IsSuperuser: user.IsSuperuser,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
 	}, nil
 }
 
 // Update response maps in other handlers to include phone_number
-func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (interface{}, error) {
+func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*UserResponse, error) {
 	userID := ctx.Value("user_id").(string)
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
@@ -246,20 +260,20 @@ func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (int
 		return nil, fmt.Errorf("error updating user: %w", err)
 	}
 
-	return map[string]interface{}{
-		"id":           user.ID,
-		"email":        user.Email,
-		"phone_number": user.PhoneNumber,
-		"full_name":    user.FullName,
-		"is_active":    user.IsActive,
-		"is_superuser": user.IsSuperuser,
-		"created_at":   user.CreatedAt,
-		"updated_at":   user.UpdatedAt,
+	return &UserResponse{
+		ID:          user.ID,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		FullName:    user.FullName,
+		IsActive:    user.IsActive,
+		IsSuperuser: user.IsSuperuser,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
 	}, nil
 }
 
 // Update getCurrentUserHandler response
-func getCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, error) {
+func getCurrentUserHandler(ctx context.Context) (*UserResponse, error) {
 	userID := ctx.Value("user_id").(string)
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
@@ -276,20 +290,20 @@ func getCurrentUserHandler(ctx context.Context, _ interface{}) (interface{}, err
 		return nil, middleware.NewBadRequestError("user not found")
 	}
 
-	return map[string]interface{}{
-		"id":           user.ID,
-		"email":        user.Email,
-		"phone_number": user.PhoneNumber,
-		"full_name":    user.FullName,
-		"is_active":    user.IsActive,
-		"is_superuser": user.IsSuperuser,
-		"created_at":   user.CreatedAt,
-		"updated_at":   user.UpdatedAt,
+	return &UserResponse{
+		ID:          user.ID,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		FullName:    user.FullName,
+		IsActive:    user.IsActive,
+		IsSuperuser: user.IsSuperuser,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
 	}, nil
 }
 
 // Update getUserHandler response
-func getUserHandler(ctx context.Context, req GetUserRequest) (interface{}, error) {
+func getUserHandler(ctx context.Context, req GetUserRequest) (*UserResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	id, err := uuid.Parse(req.ID)
@@ -305,20 +319,20 @@ func getUserHandler(ctx context.Context, req GetUserRequest) (interface{}, error
 		return nil, middleware.NewBadRequestError("user not found")
 	}
 
-	return map[string]interface{}{
-		"id":           user.ID,
-		"email":        user.Email,
-		"phone_number": user.PhoneNumber,
-		"full_name":    user.FullName,
-		"is_active":    user.IsActive,
-		"is_superuser": user.IsSuperuser,
-		"created_at":   user.CreatedAt,
-		"updated_at":   user.UpdatedAt,
+	return &UserResponse{
+		ID:          user.ID,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		FullName:    user.FullName,
+		IsActive:    user.IsActive,
+		IsSuperuser: user.IsSuperuser,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
 	}, nil
 }
 
 // Update updateUserHandler to handle phone number
-func updateUserHandler(ctx context.Context, req UpdateUserRequest) (interface{}, error) {
+func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	// check if user is superuser
@@ -375,20 +389,20 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (interface{},
 		return nil, fmt.Errorf("error updating user: %w", err)
 	}
 
-	return map[string]interface{}{
-		"id":           user.ID,
-		"email":        user.Email,
-		"phone_number": user.PhoneNumber,
-		"full_name":    user.FullName,
-		"is_active":    user.IsActive,
-		"is_superuser": user.IsSuperuser,
-		"created_at":   user.CreatedAt,
-		"updated_at":   user.UpdatedAt,
+	return &UserResponse{
+		ID:          user.ID,
+		Email:       user.Email,
+		PhoneNumber: user.PhoneNumber,
+		FullName:    user.FullName,
+		IsActive:    user.IsActive,
+		IsSuperuser: user.IsSuperuser,
+		CreatedAt:   user.CreatedAt,
+		UpdatedAt:   user.UpdatedAt,
 	}, nil
 }
 
 // Update listUsersHandler response
-func listUsersHandler(ctx context.Context, req ListUsersRequest) (interface{}, error) {
+func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	// Set default values for pagination
@@ -405,25 +419,28 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (interface{}, e
 	}
 
 	// Convert to response format
-	userList := make([]map[string]interface{}, len(users))
+	userList := make([]UserResponse, len(users))
 	for i, user := range users {
-		userList[i] = map[string]interface{}{
-			"id":           user.ID,
-			"email":        user.Email,
-			"phone_number": user.PhoneNumber,
-			"full_name":    user.FullName,
-			"is_active":    user.IsActive,
-			"is_superuser": user.IsSuperuser,
-			"created_at":   user.CreatedAt,
-			"updated_at":   user.UpdatedAt,
+		userList[i] = UserResponse{
+			ID:          user.ID,
+			Email:       user.Email,
+			PhoneNumber: user.PhoneNumber,
+			FullName:    user.FullName,
+			IsActive:    user.IsActive,
+			IsSuperuser: user.IsSuperuser,
+			CreatedAt:   user.CreatedAt,
+			UpdatedAt:   user.UpdatedAt,
 		}
 	}
 
-	return map[string]interface{}{
-		"users": userList,
-		"meta": map[string]interface{}{
-			"skip":  req.Skip,
-			"limit": req.Limit,
+	return &UsersResponse{
+		Users: userList,
+		Meta: struct {
+			Skip  int `json:"skip"`
+			Limit int `json:"limit"`
+		}{
+			Skip:  req.Skip,
+			Limit: req.Limit,
 		},
 	}, nil
 }

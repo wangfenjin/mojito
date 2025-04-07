@@ -13,13 +13,14 @@ import (
 func RegisterTestRoutes(h *server.Hertz) {
 	testGroup := h.Group("/api/v1/test")
 	{
-		testGroup.DELETE("/cleanup", middleware.WithResponse(cleanupHandler))
+		testGroup.DELETE("/cleanup",
+			middleware.WithHandler(cleanupHandler))
 	}
 }
 
 type EmptyRequest struct{}
 
-func cleanupHandler(ctx context.Context, _ EmptyRequest) (interface{}, error) {
+func cleanupHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
 
@@ -32,5 +33,7 @@ func cleanupHandler(ctx context.Context, _ EmptyRequest) (interface{}, error) {
 		return nil, fmt.Errorf("error cleaning up user data: %w", err)
 	}
 
-	return map[string]string{"message": "Test data cleaned up"}, nil
+	return &MessageResponse{
+		Message: "Test data cleaned up",
+	}, nil
 }

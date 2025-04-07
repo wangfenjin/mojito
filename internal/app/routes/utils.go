@@ -3,28 +3,31 @@ package routes
 import (
 	"context"
 
-	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/wangfenjin/mojito/internal/app/middleware"
 )
 
 // RegisterUtilRoutes registers all utility related routes
 func RegisterUtilRoutes(h *server.Hertz) {
-	// Utils routes group
 	utilsGroup := h.Group("/api/v1/utils")
 	{
-		// Health check endpoint
-		utilsGroup.GET("/health-check/", healthCheckHandler)
-		utilsGroup.POST("/test-email/", testEmailHandler)
+		utilsGroup.GET("/health-check/",
+			middleware.WithHandlerEmpty(healthCheckHandler))
+		utilsGroup.POST("/test-email/",
+			middleware.WithHandlerEmpty(testEmailHandler))
 	}
 }
 
-// Health check handler
-func healthCheckHandler(ctx context.Context, c *app.RequestContext) {
-	c.JSON(consts.StatusOK, true)
+// Update handler signatures
+// Add response types
+type HealthCheckResponse struct {
+	Status bool `json:"status"`
 }
 
-// Utils handlers
-func testEmailHandler(ctx context.Context, c *app.RequestContext) {
+func healthCheckHandler(ctx context.Context) (*HealthCheckResponse, error) {
+	return &HealthCheckResponse{Status: true}, nil
+}
+
+func testEmailHandler(ctx context.Context) (*MessageResponse, error) {
 	panic("Not implemented: testEmailHandler")
 }

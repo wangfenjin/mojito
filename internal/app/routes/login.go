@@ -11,6 +11,27 @@ import (
 	"github.com/wangfenjin/mojito/internal/app/utils"
 )
 
+// RegisterLoginRoutes registers all login related routes
+func RegisterLoginRoutes(h *server.Hertz) {
+	loginGroup := h.Group("/api/v1")
+	{
+		loginGroup.POST("/login/access-token",
+			middleware.WithHandler(loginAccessTokenHandler))
+
+		loginGroup.GET("/login/test-token",
+			middleware.WithHandlerEmpty(testTokenHandler))
+
+		loginGroup.POST("/password-recovery/:email",
+			middleware.WithHandler(recoverPasswordHandler))
+
+		loginGroup.POST("/reset-password/",
+			middleware.WithHandler(resetPasswordHandler))
+
+		loginGroup.POST("/password-recovery-html-content/:email",
+			middleware.WithHandler(recoverPasswordHtmlContentHandler))
+	}
+}
+
 // Request structs for login routes
 type LoginAccessTokenRequest struct {
 	Username     string `form:"username" binding:"required"`
@@ -44,34 +65,17 @@ type MessageResponse struct {
 	Message string `json:"message"`
 }
 
-// RegisterLoginRoutes registers all login related routes
-func RegisterLoginRoutes(h *server.Hertz) {
-	loginGroup := h.Group("/api/v1")
-	{
-		loginGroup.POST("/login/access-token",
-			middleware.WithRequest(LoginAccessTokenRequest{}),
-			middleware.WithResponse(loginAccessTokenHandler))
+type TestTokenResponse struct {
+	UserID string `json:"user_id"`
+	Email  string `json:"email"`
+}
 
-		// Change POST to GET and wrap with middleware
-		loginGroup.GET("/login/test-token",
-			middleware.WithResponse(testTokenHandler))
-
-		loginGroup.POST("/password-recovery/:email",
-			middleware.WithRequest(RecoverPasswordRequest{}),
-			middleware.WithResponse(recoverPasswordHandler))
-
-		loginGroup.POST("/reset-password/",
-			middleware.WithRequest(ResetPasswordRequest{}),
-			middleware.WithResponse(resetPasswordHandler))
-
-		loginGroup.POST("/password-recovery-html-content/:email",
-			middleware.WithRequest(RecoverPasswordHtmlContentRequest{}),
-			middleware.WithResponse(recoverPasswordHtmlContentHandler))
-	}
+type HTMLContentResponse struct {
+	HTMLContent string `json:"html_content"`
 }
 
 // Login handlers with updated signatures
-func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (interface{}, error) {
+func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (*TokenResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	// Get user by email
@@ -99,14 +103,14 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 		return nil, fmt.Errorf("error generating token: %w", err)
 	}
 
-	return TokenResponse{
+	return &TokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
 	}, nil
 }
 
-// Update testTokenHandler signature to match middleware
-func testTokenHandler(ctx context.Context, _ interface{}) (interface{}, error) {
+// Update handler signatures to use pointer returns
+func testTokenHandler(ctx context.Context) (*TestTokenResponse, error) {
 	c := ctx.Value("requestContext").(*app.RequestContext)
 
 	// Get token from Authorization header
@@ -122,13 +126,13 @@ func testTokenHandler(ctx context.Context, _ interface{}) (interface{}, error) {
 		return nil, middleware.NewUnauthorizedError("invalid token")
 	}
 
-	return map[string]interface{}{
-		"user_id": claims.UserID,
-		"email":   claims.Email,
+	return &TestTokenResponse{
+		UserID: claims.UserID,
+		Email:  claims.Email,
 	}, nil
 }
 
-func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (interface{}, error) {
+func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (*MessageResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 
 	// Check if user exists
@@ -142,21 +146,20 @@ func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (in
 
 	// TODO: Generate password reset token and send email
 	// For now, just return success message
-	return MessageResponse{
+	return &MessageResponse{
 		Message: "password recovery email sent",
 	}, nil
 }
 
-func resetPasswordHandler(ctx context.Context, req ResetPasswordRequest) (interface{}, error) {
+func resetPasswordHandler(ctx context.Context, req ResetPasswordRequest) (*MessageResponse, error) {
 	// TODO: Implement password reset logic with token validation
-	return MessageResponse{
+	return &MessageResponse{
 		Message: "password reset successful",
 	}, nil
 }
 
-func recoverPasswordHtmlContentHandler(ctx context.Context, req RecoverPasswordHtmlContentRequest) (interface{}, error) {
-	// TODO: Generate HTML content for password recovery email
-	return map[string]string{
-		"html_content": "<h1>Reset Your Password</h1><p>Click the link below to reset your password.</p>",
+func recoverPasswordHtmlContentHandler(ctx context.Context, req RecoverPasswordHtmlContentRequest) (*HTMLContentResponse, error) {
+	return &HTMLContentResponse{
+		HTMLContent: "<h1>Reset Your Password</h1><p>Click the link below to reset your password.</p>",
 	}, nil
 }
