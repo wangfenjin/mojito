@@ -1,1 +1,4 @@
-DROP TABLE IF EXISTS users;
+-- Migration: 1.0.0
+BEGIN;
+DROP TABLE IF EXISTS "users" CASCADE;
+COMMIT;

@@ -16,29 +16,29 @@ func (userBase) TableName() string {
 // User represents a user in the system
 type UserV1 struct {
 	userBase
-	ID          uuid.UUID `gorm:"type:uuid;primary_key"`
-	Email       string    `gorm:"uniqueIndex;not null"`
-	Password    string    `gorm:"not null"`
-	FullName    string    `gorm:"not null"`
-	IsActive    bool      `gorm:"default:true"`
-	IsSuperuser bool      `gorm:"default:false"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          uuid.UUID      `gorm:"type:uuid;primary_key"`
+	Email       string         `gorm:"uniqueIndex;type:varchar(255);not null"`
+	Password    string         `gorm:"type:varchar(255);not null"`
+	FullName    string         `gorm:"type:varchar(100);not null"`
+	IsActive    bool           `gorm:"default:true"`
+	IsSuperuser bool           `gorm:"default:false"`
+	CreatedAt   time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP;index:idx_users_created"`
+	UpdatedAt   time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP;index:idx_users_updated"`
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
 
 // User represents a user in the system
 type UserV2 struct {
 	userBase
-	ID          uuid.UUID `gorm:"type:uuid;primary_key;not null"`
-	Email       string    `gorm:"uniqueIndex:idx_users_email;type:varchar(255);not null" validate:"required,email"`
-	PhoneNumber string    `gorm:"uniqueIndex:idx_users_phone;type:varchar(20)" validate:"omitempty,e164"`
-	Password    string    `gorm:"type:varchar(255);not null"`
-	FullName    string    `gorm:"not null"`
-	IsActive    bool      `gorm:"default:true"`
-	IsSuperuser bool      `gorm:"default:false"`
-	CreatedAt   time.Time
-	UpdatedAt   time.Time
+	ID          uuid.UUID      `gorm:"type:uuid;primary_key"`
+	Email       string         `gorm:"uniqueIndex:idx_users_email;type:varchar(255);not null" validate:"required,email,max=255"`
+	PhoneNumber string         `gorm:"uniqueIndex:idx_users_phone;type:varchar(20)" validate:"omitempty,e164"`
+	Password    string         `gorm:"type:varchar(255);not null" validate:"required,min=8"`
+	FullName    string         `gorm:"type:varchar(100);not null" validate:"required,min=2,max=100"`
+	IsActive    bool           `gorm:"default:true"`
+	IsSuperuser bool           `gorm:"default:false"`
+	CreatedAt   time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP;index:idx_users_created;autoCreateTime"`
+	UpdatedAt   time.Time      `gorm:"not null;default:CURRENT_TIMESTAMP;index:idx_users_updated;autoUpdateTime"`
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
 

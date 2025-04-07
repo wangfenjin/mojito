@@ -75,6 +75,15 @@ func handleColumnChanges(tx *gorm.DB, model interface{}, oldType, newType reflec
 		return fmt.Errorf("parsing new model: %w", err)
 	}
 
+	// Handle dropped columns first
+	for _, oldField := range oldStmt.Schema.Fields {
+		if newStmt.Schema.LookUpField(oldField.Name) == nil {
+			if err := tx.Migrator().DropColumn(model, oldField.DBName); err != nil {
+				return fmt.Errorf("dropping column %s: %w", oldField.DBName, err)
+			}
+		}
+	}
+
 	// Handle new columns and modifications
 	for _, newField := range newStmt.Schema.Fields {
 		oldField := oldStmt.Schema.LookUpField(newField.Name)
@@ -103,19 +112,76 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 		return err
 	}
 
-	// 处理唯一约束
+	// Handle foreign key constraints
 	for _, field := range newStmt.Schema.Fields {
-		if field.Unique {
-			constraintName := fmt.Sprintf("uk_%s_%s", newStmt.Schema.Table, field.DBName)
-			if !tx.Migrator().HasConstraint(newModel, constraintName) {
+		if field.TagSettings["FOREIGNKEY"] != "" {
+			// Get reference table and field
+			refSchema := &gorm.Statement{DB: tx}
+			if err := refSchema.Parse(reflect.New(field.IndirectFieldType).Interface()); err != nil {
+				return fmt.Errorf("parsing reference model: %w", err)
+			}
+
+			constraintName := fmt.Sprintf("fk_%s_%s", newStmt.Schema.Table, field.DBName)
+
+			// Drop existing constraint if exists
+			if tx.Migrator().HasConstraint(newModel, constraintName) {
+				if err := tx.Migrator().DropConstraint(newModel, constraintName); err != nil {
+					log.Printf("Warning: dropping foreign key constraint %s: %v", constraintName, err)
+				}
+			}
+
+			// Use raw SQL only if we have special options
+			if constraint := field.TagSettings["CONSTRAINT"]; constraint != "" &&
+				(strings.Contains(constraint, "OnDelete:") || strings.Contains(constraint, "OnUpdate:")) {
+				sql := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s FOREIGN KEY (%s) REFERENCES %s(id)",
+					newStmt.Schema.Table, constraintName, field.DBName, refSchema.Schema.Table)
+				if strings.Contains(constraint, "OnDelete:CASCADE") {
+					sql += " ON DELETE CASCADE"
+				}
+				if strings.Contains(constraint, "OnUpdate:CASCADE") {
+					sql += " ON UPDATE CASCADE"
+				}
+				if err := tx.Exec(sql).Error; err != nil {
+					return fmt.Errorf("creating foreign key constraint with options: %w", err)
+				}
+			} else {
+				// Use GORM's API for basic foreign key constraints
 				if err := tx.Migrator().CreateConstraint(newModel, constraintName); err != nil {
-					log.Printf("Warning: 创建约束 %s: %v", constraintName, err)
+					return fmt.Errorf("creating foreign key constraint: %w", err)
 				}
 			}
 		}
 	}
 
-	// 检查旧模型中存在但新模型中不存在的约束
+	// Drop old foreign key constraints
+	for _, field := range oldStmt.Schema.Fields {
+		if _, ok := field.TagSettings["FOREIGNKEY"]; ok {
+			constraintName := fmt.Sprintf("fk_%s_%s", oldStmt.Schema.Table, field.DBName)
+			newField := newStmt.Schema.LookUpField(field.Name)
+			if newField == nil {
+				if tx.Migrator().HasConstraint(oldModel, constraintName) {
+					if err := tx.Migrator().DropConstraint(oldModel, constraintName); err != nil {
+						log.Printf("Warning: dropping old foreign key constraint %s: %v", constraintName, err)
+						return err
+					}
+				}
+			}
+		}
+	}
+
+	// Handle unique constraints
+	for _, field := range newStmt.Schema.Fields {
+		if field.Unique {
+			constraintName := fmt.Sprintf("uk_%s_%s", newStmt.Schema.Table, field.DBName)
+			if !tx.Migrator().HasConstraint(newModel, constraintName) {
+				if err := tx.Migrator().CreateConstraint(newModel, constraintName); err != nil {
+					log.Printf("Warning: creating unique constraint %s: %v", constraintName, err)
+				}
+			}
+		}
+	}
+
+	// Check for removed unique constraints
 	for _, field := range oldStmt.Schema.Fields {
 		if field.Unique {
 			constraintName := fmt.Sprintf("uk_%s_%s", oldStmt.Schema.Table, field.DBName)
@@ -123,7 +189,7 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 			if !exists || !newField.Unique {
 				if tx.Migrator().HasConstraint(oldModel, constraintName) {
 					if err := tx.Migrator().DropConstraint(oldModel, constraintName); err != nil {
-						log.Printf("Warning: 删除约束 %s: %v", constraintName, err)
+						log.Printf("Warning: dropping unique constraint %s: %v", constraintName, err)
 					}
 				}
 			}

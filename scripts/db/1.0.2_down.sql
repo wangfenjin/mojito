@@ -1,2 +1,5 @@
-DROP INDEX IF EXISTS idx_users_phone;
-ALTER TABLE users DROP COLUMN IF EXISTS phone_number;
+-- Migration: 1.0.2
+BEGIN;
+ALTER TABLE "users" DROP COLUMN "phone_number";
+DROP INDEX "idx_users_phone";
+COMMIT;
