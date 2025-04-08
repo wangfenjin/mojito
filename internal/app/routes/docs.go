@@ -12,34 +12,14 @@ import (
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/cloudwego/hertz/pkg/protocol/consts"
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
 )
 
 // RegisterDocsRoutes registers routes for API documentation
 func RegisterDocsRoutes(h *server.Hertz) {
-	// get middleware names from h.Handlers
-	middlewareNames := make([]string, len(h.Handlers))
-	for i, handler := range h.Handlers {
-		middlewareNames[i] = reflect.TypeOf(handler).Name()
-	}
-	for _, route := range h.Routes() {
-		// Skip docs routes to avoid circular references
-		if strings.HasPrefix(route.Path, "/docs") {
-			continue
-		}
-		middleware.RegisterRoute(route.Method, route.Path, route.Handler, middlewareNames...)
-	}
-
-	if len(middleware.RouteRegistry) == 0 {
-		panic("Route registry is empty. Please register routes before generating Swagger spec.")
-	}
-	// Generate OpenAPI spec
-	err := GenerateSwaggerJSON("./api/openapi.json", h)
-	if err != nil {
-		panic("Failed to generate OpenAPI spec: " + err.Error())
-	}
-
 	// Serve Swagger UI
 	docsGroup := h.Group("/docs")
 	{
@@ -50,6 +30,16 @@ func RegisterDocsRoutes(h *server.Hertz) {
 
 		// Serve Swagger UI using CDN
 		docsGroup.GET("/*any", func(ctx context.Context, c *app.RequestContext) {
+			if len(middleware.RouteRegistry) == 0 {
+				logger.GetLogger().Info("No routes registered. Skipping docs generation.")
+				c.AbortWithError(consts.StatusInternalServerError, fmt.Errorf("no routes registered"))
+			}
+			// Generate OpenAPI spec
+			err := GenerateSwaggerJSON("./api/openapi.json", h)
+			if err != nil {
+				c.AbortWithError(consts.StatusInternalServerError, err)
+			}
+
 			// HTML for Swagger UI using CDN
 			swaggerHTML := `
 <!DOCTYPE html>

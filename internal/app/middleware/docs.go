@@ -1,10 +1,11 @@
 package middleware
 
 import (
-	"fmt"
 	"reflect"
 	"runtime"
 	"strings"
+
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
 )
 
 // RouteInfo stores information about a route
@@ -21,27 +22,11 @@ type RouteInfo struct {
 	ResponseType reflect.Type
 }
 
-// HandlerInfo stores information about a handler for documentation
-type HandlerInfo struct {
-	Handler      interface{}
-	RequestType  reflect.Type
-	ResponseType reflect.Type
-}
-
-// pendingHandlers stores handlers that need to be registered with routes
-var PendingHandlers []HandlerInfo
-
-// AddPendingHandler adds a handler to the pending list
-func AddPendingHandler(info HandlerInfo) {
-	PendingHandlers = append(PendingHandlers, info)
-}
-
 // Global registry to store route information
 var RouteRegistry = make(map[string][]RouteInfo)
 
 // RegisterRoute adds route information to the registry
 func RegisterRoute(method, path string, handler interface{}, middlewares ...string) {
-	fmt.Printf("Registering route: %s %s\n", method, path)
 	// Get handler name using reflection
 	handlerName := getFunctionName(handler)
 
@@ -61,6 +46,7 @@ func RegisterRoute(method, path string, handler interface{}, middlewares ...stri
 		if handlerType.NumOut() > 0 {
 			responseType = handlerType.Out(0)
 		}
+		logger.GetLogger().Info("handler params", "in", requestType, "out", responseType)
 	}
 
 	// Generate tag from path
