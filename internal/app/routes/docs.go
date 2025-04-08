@@ -13,12 +13,29 @@ import (
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/google/uuid"
+	"github.com/wangfenjin/mojito/internal/app/middleware"
 )
 
 // RegisterDocsRoutes registers routes for API documentation
 func RegisterDocsRoutes(h *server.Hertz) {
+	// get middleware names from h.Handlers
+	middlewareNames := make([]string, len(h.Handlers))
+	for i, handler := range h.Handlers {
+		middlewareNames[i] = reflect.TypeOf(handler).Name()
+	}
+	for _, route := range h.Routes() {
+		// Skip docs routes to avoid circular references
+		if strings.HasPrefix(route.Path, "/docs") {
+			continue
+		}
+		middleware.RegisterRoute(route.Method, route.Path, route.Handler, middlewareNames...)
+	}
+
+	if len(middleware.RouteRegistry) == 0 {
+		panic("Route registry is empty. Please register routes before generating Swagger spec.")
+	}
 	// Generate OpenAPI spec
-	err := GenerateSwaggerJSON("./api/openapi.json")
+	err := GenerateSwaggerJSON("./api/openapi.json", h)
 	if err != nil {
 		panic("Failed to generate OpenAPI spec: " + err.Error())
 	}
@@ -107,7 +124,7 @@ var SwaggerDoc = SwaggerInfo{
 }
 
 // GenerateSwaggerJSON generates the OpenAPI specification JSON file
-func GenerateSwaggerJSON(outputPath string) error {
+func GenerateSwaggerJSON(outputPath string, h *server.Hertz) error {
 	spec := OpenAPISpec{
 		OpenAPI: "3.1.0",
 		Info: map[string]interface{}{
@@ -120,7 +137,7 @@ func GenerateSwaggerJSON(outputPath string) error {
 				"url": fmt.Sprintf("http://%s%s", SwaggerDoc.Host, SwaggerDoc.BasePath),
 			},
 		},
-		Paths:      generatePaths(),
+		Paths:      generatePathsFromRegistry(),
 		Components: generateComponents(),
 	}
 
@@ -144,249 +161,99 @@ func GenerateSwaggerJSON(outputPath string) error {
 	return nil
 }
 
-// generatePaths creates the paths section of the OpenAPI spec
-func generatePaths() map[string]interface{} {
+// generatePathsFromRegistry creates the paths section of the OpenAPI spec from the route registry
+func generatePathsFromRegistry() map[string]interface{} {
 	paths := make(map[string]interface{})
 
-	// Login routes
-	paths["/login/access-token"] = map[string]interface{}{
-		"post": createOperation(
-			"Login",
-			"Get access token",
-			"login",
-			reflect.TypeOf(LoginAccessTokenRequest{}),
-			reflect.TypeOf(TokenResponse{}),
-			[]string{"form"},
-		),
+	// Group routes by path
+	routesByPath := make(map[string][]middleware.RouteInfo)
+	for _, routes := range middleware.RouteRegistry {
+		for _, route := range routes {
+			// Skip docs routes to avoid circular references
+			if strings.HasPrefix(route.Path, "/docs") {
+				continue
+			}
+
+			// Normalize path for OpenAPI
+			apiPath := strings.TrimPrefix(route.Path, SwaggerDoc.BasePath)
+			// Convert Hertz path params (:id) to OpenAPI path params ({id})
+			apiPath = convertPathParams(apiPath)
+
+			routesByPath[apiPath] = append(routesByPath[apiPath], route)
+		}
 	}
 
-	paths["/login/test-token"] = map[string]interface{}{
-		"get": createOperation(
-			"Test Token",
-			"Test if the access token is valid",
-			"login",
-			nil,
-			reflect.TypeOf(TestTokenResponse{}),
-			nil,
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-	}
+	// Process each path
+	for path, routes := range routesByPath {
+		pathItem := make(map[string]interface{})
 
-	paths["/password-recovery/{email}"] = map[string]interface{}{
-		"post": createOperation(
-			"Recover Password",
-			"Recover user password",
-			"login",
-			reflect.TypeOf(RecoverPasswordRequest{}),
-			reflect.TypeOf(MessageResponse{}),
-			nil,
-			map[string]interface{}{
-				"parameters": []map[string]interface{}{
-					{
-						"name":     "email",
-						"in":       "path",
-						"required": true,
-						"schema": map[string]string{
-							"type": "string",
-						},
-					},
-				},
-			},
-		),
-	}
+		for _, route := range routes {
+			// Convert HTTP method to lowercase
+			method := strings.ToLower(route.Method)
 
-	// User routes
-	paths["/users"] = map[string]interface{}{
-		"get": createOperation(
-			"List Users",
-			"Get list of users",
-			"users",
-			reflect.TypeOf(ListUsersRequest{}),
-			reflect.TypeOf(UsersResponse{}),
-			[]string{"query"},
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-	}
+			// Create operation for this method
+			operation := createOperationFromRouteInfo(route)
 
-	paths["/users/me"] = map[string]interface{}{
-		"get": createOperation(
-			"Get Current User",
-			"Get current user information",
-			"users",
-			nil,
-			reflect.TypeOf(UserResponse{}),
-			nil,
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-		"patch": createOperation(
-			"Update Current User",
-			"Update current user information",
-			"users",
-			reflect.TypeOf(UpdateUserMeRequest{}),
-			reflect.TypeOf(UserResponse{}),
-			nil,
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-		"delete": createOperation(
-			"Delete Current User",
-			"Delete current user",
-			"users",
-			nil,
-			reflect.TypeOf(MessageResponse{}),
-			nil,
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-	}
+			// Add to path item
+			pathItem[method] = operation
+		}
 
-	paths["/users/signup"] = map[string]interface{}{
-		"post": createOperation(
-			"Register User",
-			"Register a new user",
-			"users",
-			reflect.TypeOf(RegisterUserRequest{}),
-			reflect.TypeOf(UserResponse{}),
-			nil,
-		),
-	}
-
-	// Item routes
-	paths["/items"] = map[string]interface{}{
-		"get": createOperation(
-			"List Items",
-			"Get list of items",
-			"items",
-			reflect.TypeOf(ListItemsRequest{}),
-			reflect.TypeOf(ItemsResponse{}),
-			[]string{"query"},
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-		"post": createOperation(
-			"Create Item",
-			"Create a new item",
-			"items",
-			reflect.TypeOf(CreateItemRequest{}),
-			reflect.TypeOf(ItemResponse{}),
-			nil,
-			map[string]interface{}{
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-	}
-
-	paths["/items/{id}"] = map[string]interface{}{
-		"get": createOperation(
-			"Get Item",
-			"Get item by ID",
-			"items",
-			reflect.TypeOf(GetItemRequest{}),
-			reflect.TypeOf(ItemResponse{}),
-			nil,
-			map[string]interface{}{
-				"parameters": []map[string]interface{}{
-					{
-						"name":     "id",
-						"in":       "path",
-						"required": true,
-						"schema": map[string]string{
-							"type":   "string",
-							"format": "uuid",
-						},
-					},
-				},
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-		"put": createOperation(
-			"Update Item",
-			"Update an item",
-			"items",
-			reflect.TypeOf(UpdateItemRequest{}),
-			reflect.TypeOf(ItemResponse{}),
-			nil,
-			map[string]interface{}{
-				"parameters": []map[string]interface{}{
-					{
-						"name":     "id",
-						"in":       "path",
-						"required": true,
-						"schema": map[string]string{
-							"type":   "string",
-							"format": "uuid",
-						},
-					},
-				},
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-		"delete": createOperation(
-			"Delete Item",
-			"Delete an item",
-			"items",
-			reflect.TypeOf(GetItemRequest{}),
-			reflect.TypeOf(MessageResponse{}),
-			nil,
-			map[string]interface{}{
-				"parameters": []map[string]interface{}{
-					{
-						"name":     "id",
-						"in":       "path",
-						"required": true,
-						"schema": map[string]string{
-							"type":   "string",
-							"format": "uuid",
-						},
-					},
-				},
-				"security": []map[string][]string{
-					{"bearerAuth": {}},
-				},
-			},
-		),
-	}
-
-	// Utils routes
-	paths["/utils/health-check"] = map[string]interface{}{
-		"get": createOperation(
-			"Health Check",
-			"Check if the API is running",
-			"utils",
-			nil,
-			reflect.TypeOf(HealthCheckResponse{}),
-			nil,
-		),
+		paths[path] = pathItem
 	}
 
 	return paths
+}
+
+// createOperationFromRouteInfo creates an operation object for a route
+func createOperationFromRouteInfo(route middleware.RouteInfo) map[string]interface{} {
+	// Extract tag from route info
+	tag := route.Tags[0]
+
+	// Default values
+	summary := route.Summary
+	description := route.Description
+
+	var paramIn []string
+
+	// Determine parameter location (query, path, form)
+	if strings.Contains(route.Path, ":") {
+		paramIn = append(paramIn, "path")
+	}
+	if route.Method == "GET" && route.RequestType != nil {
+		paramIn = append(paramIn, "query")
+	}
+	if route.Method == "POST" && strings.Contains(route.Path, "login/access-token") {
+		paramIn = append(paramIn, "form")
+	}
+
+	// Create extra fields for security if middleware includes auth
+	var extraFields map[string]interface{}
+	for _, middleware := range route.Middlewares {
+		if middleware == "RequireAuth" {
+			extraFields = map[string]interface{}{
+				"security": []map[string][]string{
+					{"bearerAuth": {}},
+				},
+			}
+			break
+		}
+	}
+
+	// Create operation
+	return createOperation(summary, description, tag, route.RequestType, route.ResponseType, paramIn, extraFields)
+}
+
+// convertPathParams converts Hertz path params to OpenAPI path params
+func convertPathParams(path string) string {
+	segments := strings.Split(path, "/")
+	for i, segment := range segments {
+		if strings.HasPrefix(segment, ":") {
+			// Convert :id to {id}
+			paramName := strings.TrimPrefix(segment, ":")
+			segments[i] = "{" + paramName + "}"
+		}
+	}
+	return strings.Join(segments, "/")
 }
 
 // createOperation creates an operation object for the OpenAPI spec
@@ -604,32 +471,20 @@ func generateComponents() map[string]interface{} {
 	components := make(map[string]interface{})
 	schemas := make(map[string]interface{})
 
-	// Add all request and response schemas
-	addSchemas(schemas, reflect.TypeOf(LoginAccessTokenRequest{}))
-	addSchemas(schemas, reflect.TypeOf(TokenResponse{}))
-	addSchemas(schemas, reflect.TypeOf(TestTokenResponse{}))
-	addSchemas(schemas, reflect.TypeOf(RecoverPasswordRequest{}))
-	addSchemas(schemas, reflect.TypeOf(ResetPasswordRequest{}))
-	addSchemas(schemas, reflect.TypeOf(MessageResponse{}))
-	addSchemas(schemas, reflect.TypeOf(HTMLContentResponse{}))
+	// Add schemas from route registry
+	for _, routes := range middleware.RouteRegistry {
+		for _, route := range routes {
+			// Add request type schema if available
+			if route.RequestType != nil {
+				addSchemas(schemas, route.RequestType)
+			}
 
-	addSchemas(schemas, reflect.TypeOf(CreateUserRequest{}))
-	addSchemas(schemas, reflect.TypeOf(UpdateUserRequest{}))
-	addSchemas(schemas, reflect.TypeOf(RegisterUserRequest{}))
-	addSchemas(schemas, reflect.TypeOf(UpdateUserMeRequest{}))
-	addSchemas(schemas, reflect.TypeOf(GetUserRequest{}))
-	addSchemas(schemas, reflect.TypeOf(ListUsersRequest{}))
-	addSchemas(schemas, reflect.TypeOf(UserResponse{}))
-	addSchemas(schemas, reflect.TypeOf(UsersResponse{}))
-
-	addSchemas(schemas, reflect.TypeOf(CreateItemRequest{}))
-	addSchemas(schemas, reflect.TypeOf(UpdateItemRequest{}))
-	addSchemas(schemas, reflect.TypeOf(GetItemRequest{}))
-	addSchemas(schemas, reflect.TypeOf(ListItemsRequest{}))
-	addSchemas(schemas, reflect.TypeOf(ItemResponse{}))
-	addSchemas(schemas, reflect.TypeOf(ItemsResponse{}))
-
-	addSchemas(schemas, reflect.TypeOf(HealthCheckResponse{}))
+			// Add response type schema if available
+			if route.ResponseType != nil {
+				addSchemas(schemas, route.ResponseType)
+			}
+		}
+	}
 
 	// Add validation error schemas
 	schemas["HTTPValidationError"] = map[string]interface{}{
