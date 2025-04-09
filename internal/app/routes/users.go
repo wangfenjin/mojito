@@ -22,10 +22,10 @@ func RegisterUsersRoutes(h *server.Hertz) {
 			middleware.WithHandler(listUsersHandler))
 
 		usersGroup.GET("/me",
-			middleware.WithHandlerEmpty(getCurrentUserHandler))
+			middleware.WithHandler(getCurrentUserHandler))
 
 		usersGroup.DELETE("/me",
-			middleware.WithHandlerEmpty(deleteCurrentUserHandler))
+			middleware.WithHandler(deleteCurrentUserHandler))
 
 		usersGroup.PATCH("/me",
 			middleware.WithHandler(updateCurrentUserHandler))
@@ -117,7 +117,7 @@ type UpdatePasswordRequest struct {
 }
 
 // Add new handlers
-func deleteCurrentUserHandler(ctx context.Context) (*MessageResponse, error) {
+func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, error) {
 	// Get current user ID from context
 	userID := ctx.Value("user_id").(string)
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
@@ -273,7 +273,7 @@ func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*Us
 }
 
 // Update getCurrentUserHandler response
-func getCurrentUserHandler(ctx context.Context) (*UserResponse, error) {
+func getCurrentUserHandler(ctx context.Context, _ any) (*UserResponse, error) {
 	userID := ctx.Value("user_id").(string)
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
 

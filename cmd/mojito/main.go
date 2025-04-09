@@ -9,6 +9,7 @@ import (
 	"github.com/cloudwego/hertz/pkg/app/server"
 	"github.com/hertz-contrib/cors"
 	"github.com/wangfenjin/mojito/internal/app/database"
+	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/routes"
 )
@@ -35,6 +36,7 @@ func main() {
 
 	// Create Hertz server
 	h := server.Default()
+	h.Use(middleware.LoggerMiddleware())
 
 	// Add CORS middleware
 	h.Use(cors.New(cors.Config{
