@@ -108,4 +108,4 @@ GET {{host}}/api/v1/users/me
 
 HTTP 401
 [Asserts]
-jsonpath "$.error" == "missing authorization header"
+jsonpath "$.message" == "Authorization header is required"

@@ -8,6 +8,7 @@ import (
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/utils"
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
 )
 
 // RegisterLoginRoutes registers all login related routes
@@ -42,16 +43,16 @@ type LoginAccessTokenRequest struct {
 }
 
 type RecoverPasswordRequest struct {
-	Email string `path:"email" binding:"required"`
+	Email string `uri:"email" binding:"required,email"`
 }
 
 type ResetPasswordRequest struct {
 	Token    string `json:"token" binding:"required"`
-	Password string `json:"password" binding:"required"`
+	Password string `json:"password" binding:"required,min=6"`
 }
 
 type RecoverPasswordHtmlContentRequest struct {
-	Email string `path:"email" binding:"required"`
+	Email string `uri:"email" binding:"required,email"`
 }
 
 // Response structs
@@ -113,13 +114,15 @@ type TestTokenRequest struct {
 }
 
 // Update handler signatures to use pointer returns
-func testTokenHandler(ctx context.Context, req *TestTokenRequest) (*TestTokenResponse, error) {
+func testTokenHandler(ctx context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
 	// Get token from Authorization header
 	authHeader := req.Token
+	logger.GetLogger().Debug("authHeader", "token", authHeader)
 	// Extract token from "Bearer <token>"
 	tokenString := string(authHeader[7:])
 	claims, err := utils.ValidateToken(tokenString)
 	if err != nil {
+		logger.GetLogger().Error("error validating token", "error", err)
 		return nil, middleware.NewUnauthorizedError("invalid token")
 	}
 

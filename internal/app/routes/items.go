@@ -14,7 +14,7 @@ import (
 
 // RegisterItemsRoutes registers all item related routes
 func RegisterItemsRoutes(r *gin.Engine) {
-	itemsGroup := r.Group("/api/v1/items")
+	itemsGroup := r.Group("/api/v1/items", middleware.RequireAuth())
 	{
 		itemsGroup.POST("/",
 			middleware.WithHandler(createItemHandler))
@@ -40,18 +40,18 @@ type CreateItemRequest struct {
 }
 
 type UpdateItemRequest struct {
-	ID          string `path:"id" binding:"required,uuid"`
+	ID          string `uri:"id" binding:"required,uuid"`
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
 
 type GetItemRequest struct {
-	ID string `path:"id" binding:"required,uuid"`
+	ID string `uri:"id" binding:"required,uuid"`
 }
 
 type ListItemsRequest struct {
-	Skip  int `query:"skip" binding:"min=0" default:"0"`
-	Limit int `query:"limit" binding:"min=1,max=100" default:"100"`
+	Skip  int `form:"skip" binding:"min=0" default:"0"`
+	Limit int `form:"limit" binding:"min=1,max=100" default:"10"`
 }
 
 // Item handlers

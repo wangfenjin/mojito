@@ -15,7 +15,7 @@ import (
 
 // RegisterUsersRoutes registers all user related routes
 func RegisterUsersRoutes(r *gin.Engine) {
-	usersGroup := r.Group("/api/v1/users")
+	usersGroup := r.Group("/api/v1/users", middleware.RequireAuth())
 	{
 		// Protected routes (require auth)
 		usersGroup.GET("/",
@@ -57,7 +57,7 @@ type CreateUserRequest struct {
 
 // UpdateUserRequest
 type UpdateUserRequest struct {
-	ID          string `path:"id" binding:"required,uuid"`
+	ID          string `uri:"id" binding:"required,uuid"`
 	Email       string `json:"email" binding:"omitempty,email"`
 	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
 	Password    string `json:"password"`
@@ -82,12 +82,12 @@ type UpdateUserMeRequest struct {
 }
 
 type GetUserRequest struct {
-	ID string `path:"id" binding:"required"`
+	ID string `uri:"id" binding:"required,uuid"`
 }
 
 type ListUsersRequest struct {
-	Skip  int `query:"skip"`
-	Limit int `query:"limit"`
+	Skip  int `form:"skip" binding:"min=0" default:"0"`
+	Limit int `form:"limit" binding:"min=1,max=100" default:"10"`
 }
 
 // UserResponse represents the standard user response format

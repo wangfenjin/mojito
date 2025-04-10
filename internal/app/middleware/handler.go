@@ -7,6 +7,8 @@ import (
 	"runtime"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/wangfenjin/mojito/internal/app/utils"
 	"github.com/wangfenjin/mojito/internal/pkg/logger"
 	"github.com/wangfenjin/mojito/pkg/openapi"
 )
@@ -22,29 +24,23 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		}
 
 		var req Req
-		if err := c.BindUri(&req); err != nil {
-			logger.GetLogger().Error("BindUri error", "error", err.Error())
-			return
-		}
-		if err := c.BindHeader(&req); err != nil {
-			logger.GetLogger().Error("BindHeader error", "error", err.Error())
-			return
-		}
-		if err := c.BindQuery(&req); err != nil {
-			logger.GetLogger().Error("BindQuery error", "error", err.Error())
-			return
-		}
-		if err := c.Bind(&req); err != nil {
-			logger.GetLogger().Error("Bind error", "error", err.Error())
+		c.ShouldBind(&req)
+		c.ShouldBindUri(&req)
+		c.ShouldBindHeader(&req)
+		c.ShouldBindQuery(&req)
+		if err := binding.Validator.ValidateStruct(req); err != nil {
+			logger.GetLogger().Error("Bind error", "error", err)
+			c.AbortWithStatusJSON(http.StatusBadRequest, NewBadRequestError(err.Error()))
 			return
 		}
 
 		resp, err := handler(c, req)
 		if err != nil {
+			logger.GetLogger().Error("Handler error", "error", err)
 			if apiErr, ok := err.(*APIError); ok {
-				c.AbortWithError(apiErr.Code, apiErr).SetType(gin.ErrorTypePublic)
+				c.AbortWithStatusJSON(http.StatusBadRequest, apiErr)
 			} else {
-				c.AbortWithError(http.StatusInternalServerError, apiErr).SetType(gin.ErrorTypePrivate)
+				c.AbortWithStatusJSON(http.StatusInternalServerError, NewBadRequestError(err.Error()))
 			}
 			return
 		}
@@ -52,54 +48,27 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 	}
 }
 
-// WithHandlerEmpty is a convenience function for handlers without request body
-// func WithHandlerEmpty[Resp any](handler func(ctx context.Context) (Resp, error)) app.HandlerFunc {
-// 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
-// 	return WithHandler(func(ctx context.Context, _ any) (Resp, error) {
-// 		ctx = context.WithValue(ctx, "handler_name", handlerName)
-// 		ctx = context.WithValue(ctx, "request_type", nil)
-// 		ctx = context.WithValue(ctx, "response_type", reflect.TypeOf((*Resp)(nil)).Elem())
-// 		return handler(ctx)
-// 	})
-// }
+func RequireAuth() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		token := c.GetHeader("Authorization")
+		if token == "" {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, NewUnauthorizedError("Authorization header is required"))
+			return
+		}
+		// Extract token from "Bearer <token>"
+		if len(token) < 7 || token[:7] != "Bearer " {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, NewUnauthorizedError("Invalid Authorization header"))
+			return
+		}
+		token = token[7:]
 
-// return func(ctx context.Context, c *app.RequestContext) {
-// 	if !openapi.Registered(string(c.Method()), string(c.FullPath())) {
-// 		ms := make([]string, 0)
-// 		for _, h := range c.Handlers() {
-// 			ms = append(ms, runtime.FuncForPC(reflect.ValueOf(h).Pointer()).Name())
-// 		}
-// 		handlerName, ok := ctx.Value("handler_name").(string)
-// 		if !ok {
-// 			handlerName = runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
-// 		}
-// 		openapi.RegisterHandler(string(c.Method()), string(c.FullPath()), handlerName, nil, reflect.TypeOf((*Resp)(nil)).Elem(), ms...)
-// 		logger.GetLogger().Info("Registering handler", "name", handlerName, "path", string(c.FullPath()), "method", string(c.Method()))
-// 	}
-
-// 	// Store request context for handlers that need it
-// 	ctx = context.WithValue(ctx, "requestContext", c)
-// 	// var req Req
-// 	// if err := c.BindAndValidate(&req); err != nil {
-// 	// 	AbortWithError(c, NewBadRequestError(err.Error()))
-// 	// 	return
-// 	// }
-
-// 	resp, err := handler(ctx)
-// 	if err != nil {
-// 		if apiErr, ok := err.(*APIError); ok {
-// 			logger.GetLogger().Error("API Error: ", "message", apiErr.Message, "code", apiErr.Code, "path", c.Path(), "method", c.Method())
-// 			c.JSON(apiErr.Code, map[string]interface{}{
-// 				"error": apiErr.Message,
-// 			})
-// 		} else {
-// 			logger.GetLogger().Error("Internal Server Error", "path", c.Path(), "method", c.Method())
-// 			c.JSON(consts.StatusInternalServerError, map[string]interface{}{
-// 				"error": err.Error(),
-// 			})
-// 		}
-// 		return
-// 	}
-
-// 	c.JSON(consts.StatusOK, resp)
-// }
+		claims, err := utils.ValidateToken(token)
+		if err != nil {
+			c.AbortWithStatusJSON(http.StatusUnauthorized, NewUnauthorizedError(err.Error()))
+			return
+		}
+		c.Set("user_id", claims.UserID)
+		c.Set("email", claims.Email)
+		c.Next()
+	}
+}

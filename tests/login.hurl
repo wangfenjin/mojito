@@ -49,7 +49,7 @@ grant_type: password
 
 HTTP 400
 [Asserts]
-jsonpath "$.error" == "invalid credentials"
+jsonpath "$.message" == "invalid credentials"
 
 # Test password recovery request
 POST {{host}}/api/v1/password-recovery/test@example.com
@@ -61,7 +61,7 @@ jsonpath "$.message" == "password recovery email sent"
 POST {{host}}/api/v1/password-recovery/nonexistent@example.com
 HTTP 400
 [Asserts]
-jsonpath "$.error" == "user not found"
+jsonpath "$.message" == "user not found"
 
 # Test reset password
 POST {{host}}/api/v1/reset-password/

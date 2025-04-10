@@ -98,4 +98,4 @@ GET {{host}}/api/v1/items/{{item_id}}
 Authorization: Bearer {{token}}
 HTTP 400
 [Asserts]
-jsonpath "$.error" == "item not found or access denied"
+jsonpath "$.message" == "item not found or access denied"
