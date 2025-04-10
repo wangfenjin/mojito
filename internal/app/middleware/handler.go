@@ -2,18 +2,33 @@ package middleware
 
 import (
 	"context"
-	"log"
+	"reflect"
+	"runtime"
 
 	"github.com/cloudwego/hertz/pkg/app"
 	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
+	"github.com/wangfenjin/mojito/pkg/openapi"
 )
 
 // WithHandler creates middleware that handles both request parsing and response writing
 func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (Resp, error)) app.HandlerFunc {
 	return func(ctx context.Context, c *app.RequestContext) {
+		if !openapi.Registered(string(c.Method()), string(c.FullPath())) {
+			ms := make([]string, 0)
+			for _, h := range c.Handlers() {
+				ms = append(ms, runtime.FuncForPC(reflect.ValueOf(h).Pointer()).Name())
+			}
+			handlerName, ok := ctx.Value("handler_name").(string)
+			if !ok {
+				handlerName = runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+			}
+			openapi.RegisterHandler(string(c.Method()), string(c.FullPath()), handlerName, nil, reflect.TypeOf((*Resp)(nil)).Elem(), ms...)
+			logger.GetLogger().Info("Registering handler", "name", handlerName, "path", string(c.FullPath()), "method", string(c.Method()), "middleware", ms)
+		}
+
 		// Store request context for handlers that need it
 		ctx = context.WithValue(ctx, "requestContext", c)
-
 		var req Req
 		if err := c.BindAndValidate(&req); err != nil {
 			AbortWithError(c, NewBadRequestError(err.Error()))
@@ -23,28 +38,71 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		resp, err := handler(ctx, req)
 		if err != nil {
 			if apiErr, ok := err.(*APIError); ok {
-				log.Printf("API Error: %v, Code: %d, Path: %s, Method: %s",
-					apiErr.Message, apiErr.Code, c.Path(), c.Method())
+				logger.GetLogger().Error("API Error: ", "message", apiErr.Message, "code", apiErr.Code, "path", c.Path(), "method", c.Method())
 				c.JSON(apiErr.Code, map[string]interface{}{
 					"error": apiErr.Message,
 				})
 			} else {
-				log.Printf("Internal Server Error: %v, Path: %s, Method: %s",
-					err, c.Path(), c.Method())
+				logger.GetLogger().Error("Internal Server Error", "path", c.Path(), "method", c.Method())
 				c.JSON(consts.StatusInternalServerError, map[string]interface{}{
 					"error": err.Error(),
 				})
 			}
 			return
 		}
-
+		logger.GetLogger().Info("Response", "path", c.Path(), "method", c.Method(), "response", resp)
 		c.JSON(consts.StatusOK, resp)
 	}
 }
 
 // WithHandlerEmpty is a convenience function for handlers without request body
-func WithHandlerEmpty[Resp any](handler func(ctx context.Context) (Resp, error)) app.HandlerFunc {
-	return WithHandler(func(ctx context.Context, _ struct{}) (Resp, error) {
-		return handler(ctx)
-	})
-}
+// func WithHandlerEmpty[Resp any](handler func(ctx context.Context) (Resp, error)) app.HandlerFunc {
+// 	handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+// 	return WithHandler(func(ctx context.Context, _ any) (Resp, error) {
+// 		ctx = context.WithValue(ctx, "handler_name", handlerName)
+// 		ctx = context.WithValue(ctx, "request_type", nil)
+// 		ctx = context.WithValue(ctx, "response_type", reflect.TypeOf((*Resp)(nil)).Elem())
+// 		return handler(ctx)
+// 	})
+// }
+
+// return func(ctx context.Context, c *app.RequestContext) {
+// 	if !openapi.Registered(string(c.Method()), string(c.FullPath())) {
+// 		ms := make([]string, 0)
+// 		for _, h := range c.Handlers() {
+// 			ms = append(ms, runtime.FuncForPC(reflect.ValueOf(h).Pointer()).Name())
+// 		}
+// 		handlerName, ok := ctx.Value("handler_name").(string)
+// 		if !ok {
+// 			handlerName = runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
+// 		}
+// 		openapi.RegisterHandler(string(c.Method()), string(c.FullPath()), handlerName, nil, reflect.TypeOf((*Resp)(nil)).Elem(), ms...)
+// 		logger.GetLogger().Info("Registering handler", "name", handlerName, "path", string(c.FullPath()), "method", string(c.Method()))
+// 	}
+
+// 	// Store request context for handlers that need it
+// 	ctx = context.WithValue(ctx, "requestContext", c)
+// 	// var req Req
+// 	// if err := c.BindAndValidate(&req); err != nil {
+// 	// 	AbortWithError(c, NewBadRequestError(err.Error()))
+// 	// 	return
+// 	// }
+
+// 	resp, err := handler(ctx)
+// 	if err != nil {
+// 		if apiErr, ok := err.(*APIError); ok {
+// 			logger.GetLogger().Error("API Error: ", "message", apiErr.Message, "code", apiErr.Code, "path", c.Path(), "method", c.Method())
+// 			c.JSON(apiErr.Code, map[string]interface{}{
+// 				"error": apiErr.Message,
+// 			})
+// 		} else {
+// 			logger.GetLogger().Error("Internal Server Error", "path", c.Path(), "method", c.Method())
+// 			c.JSON(consts.StatusInternalServerError, map[string]interface{}{
+// 				"error": err.Error(),
+// 			})
+// 		}
+// 		return
+// 	}
+
+// 	c.JSON(consts.StatusOK, resp)
+// }

@@ -12,9 +12,9 @@ func RegisterUtilRoutes(h *server.Hertz) {
 	utilsGroup := h.Group("/api/v1/utils")
 	{
 		utilsGroup.GET("/health-check/",
-			middleware.WithHandlerEmpty(healthCheckHandler))
+			middleware.WithHandler(healthCheckHandler))
 		utilsGroup.POST("/test-email/",
-			middleware.WithHandlerEmpty(testEmailHandler))
+			middleware.WithHandler(testEmailHandler))
 	}
 }
 
@@ -24,10 +24,10 @@ type HealthCheckResponse struct {
 	Status bool `json:"status"`
 }
 
-func healthCheckHandler(ctx context.Context) (*HealthCheckResponse, error) {
+func healthCheckHandler(ctx context.Context, _ any) (*HealthCheckResponse, error) {
 	return &HealthCheckResponse{Status: true}, nil
 }
 
-func testEmailHandler(ctx context.Context) (*MessageResponse, error) {
+func testEmailHandler(ctx context.Context, _ any) (*MessageResponse, error) {
 	panic("Not implemented: testEmailHandler")
 }

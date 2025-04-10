@@ -19,7 +19,7 @@ func RegisterLoginRoutes(h *server.Hertz) {
 			middleware.WithHandler(loginAccessTokenHandler))
 
 		loginGroup.GET("/login/test-token",
-			middleware.WithHandlerEmpty(testTokenHandler))
+			middleware.WithHandler(testTokenHandler))
 
 		loginGroup.POST("/password-recovery/:email",
 			middleware.WithHandler(recoverPasswordHandler))
@@ -110,7 +110,7 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 }
 
 // Update handler signatures to use pointer returns
-func testTokenHandler(ctx context.Context) (*TestTokenResponse, error) {
+func testTokenHandler(ctx context.Context, _ any) (*TestTokenResponse, error) {
 	c := ctx.Value("requestContext").(*app.RequestContext)
 
 	// Get token from Authorization header
