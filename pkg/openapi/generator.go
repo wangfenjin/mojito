@@ -35,7 +35,7 @@ var SwaggerDoc = SwaggerInfo{
 	Title:       "Mojito API",
 	Description: "API documentation for Mojito backend",
 	Version:     "1.0.0",
-	Host:        "localhost:8888",
+	Host:        "localhost:8080",
 	BasePath:    "/api/v1",
 }
 
@@ -57,7 +57,6 @@ func GenerateSwaggerJSON(outputPath string) error {
 		Components: generateComponents(),
 	}
 
-	// security?
 	// path params?
 	// components schema?
 	// get route group name?
@@ -149,10 +148,10 @@ func createOperationFromRouteInfo(route handlerInfo) map[string]interface{} {
 	// Create extra fields for security if middleware includes auth
 	var extraFields map[string]interface{}
 	for _, middleware := range route.Middlewares {
-		if middleware == "RequireAuth" {
+		if strings.Contains(middleware, "RequireAuth") {
 			extraFields = map[string]interface{}{
 				"security": []map[string][]string{
-					{"bearerAuth": {}},
+					{"OAuth2PasswordBearer": {}},
 				},
 			}
 			break
