@@ -2,9 +2,7 @@ package middleware
 
 import (
 	"fmt"
-
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"net/http"
 )
 
 type APIError struct {
@@ -19,28 +17,21 @@ func (e *APIError) Error() string {
 
 func NewUnauthorizedError(message string) *APIError {
 	return &APIError{
-		Code:    consts.StatusUnauthorized,
+		Code:    http.StatusUnauthorized,
 		Message: message,
 	}
 }
 
 func NewBadRequestError(message string) *APIError {
 	return &APIError{
-		Code:    consts.StatusBadRequest,
+		Code:    http.StatusBadRequest,
 		Message: message,
 	}
 }
 
 func NewForbiddenError(message string) *APIError {
 	return &APIError{
-		Code:    consts.StatusForbidden,
+		Code:    http.StatusForbidden,
 		Message: message,
 	}
-}
-
-func AbortWithError(c *app.RequestContext, err *APIError) {
-	c.JSON(err.Code, map[string]interface{}{
-		"error": err.Message,
-	})
-	c.Abort()
 }

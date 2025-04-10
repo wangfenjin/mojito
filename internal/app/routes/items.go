@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
@@ -13,8 +13,8 @@ import (
 )
 
 // RegisterItemsRoutes registers all item related routes
-func RegisterItemsRoutes(h *server.Hertz) {
-	itemsGroup := h.Group("/api/v1/items", middleware.RequireAuth())
+func RegisterItemsRoutes(r *gin.Engine) {
+	itemsGroup := r.Group("/api/v1/items")
 	{
 		itemsGroup.POST("/",
 			middleware.WithHandler(createItemHandler))

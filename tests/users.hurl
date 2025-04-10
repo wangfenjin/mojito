@@ -1,9 +1,9 @@
 # Clean up test data first
-DELETE http://localhost:8888/api/v1/test/cleanup
+DELETE {{host}}/api/v1/test/cleanup
 HTTP 200
 
 # Register a new user
-POST http://localhost:8888/api/v1/users/signup
+POST {{host}}/api/v1/users/signup
 Content-Type: application/json
 {
     "email": "test@example.com",
@@ -25,7 +25,7 @@ jsonpath "$.id" exists
 jsonpath "$.created_at" exists
 
 # Login to get token
-POST http://localhost:8888/api/v1/login/access-token
+POST {{host}}/api/v1/login/access-token
 Content-Type: application/x-www-form-urlencoded
 [FormParams]
 username: test@example.com
@@ -43,7 +43,7 @@ jsonpath "$.access_token" exists
 jsonpath "$.token_type" == "bearer"
 
 # Get current user (with auth)
-GET http://localhost:8888/api/v1/users/me
+GET {{host}}/api/v1/users/me
 Authorization: Bearer {{token}}
 
 HTTP 200
@@ -54,7 +54,7 @@ jsonpath "$.full_name" == "Test User"
 jsonpath "$.id" == {{user_id}}
 
 # Update current user (with auth)
-# PATCH http://localhost:8888/api/v1/users/me
+# PATCH {{host}}/api/v1/users/me
 # Authorization: Bearer {{token}}
 # Content-Type: application/json
 # {
@@ -69,7 +69,7 @@ jsonpath "$.id" == {{user_id}}
 # jsonpath "$.id" == {{user_id}}
 
 # Update password
-PATCH http://localhost:8888/api/v1/users/me/password
+PATCH {{host}}/api/v1/users/me/password
 Authorization: Bearer {{token}}
 Content-Type: application/json
 {
@@ -82,7 +82,7 @@ HTTP 200
 jsonpath "$.message" == "Password updated successfully"
 
 # List users
-GET http://localhost:8888/api/v1/users/
+GET {{host}}/api/v1/users/
 Authorization: Bearer {{token}}
 [QueryStringParams]
 skip: 0
@@ -96,7 +96,7 @@ jsonpath "$.meta.skip" == 0
 jsonpath "$.meta.limit" == 10
 
 # Delete current user
-DELETE http://localhost:8888/api/v1/users/me
+DELETE {{host}}/api/v1/users/me
 Authorization: Bearer {{token}}
 
 HTTP 200
@@ -104,7 +104,7 @@ HTTP 200
 jsonpath "$.message" == "User deleted successfully"
 
 # Verify user is deleted - should return 401 since token is no longer valid
-GET http://localhost:8888/api/v1/users/me
+GET {{host}}/api/v1/users/me
 
 HTTP 401
 [Asserts]

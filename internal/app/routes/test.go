@@ -4,13 +4,13 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 )
 
 // RegisterTestRoutes registers test-related routes
-func RegisterTestRoutes(h *server.Hertz) {
+func RegisterTestRoutes(h *gin.Engine) {
 	testGroup := h.Group("/api/v1/test")
 	{
 		testGroup.DELETE("/cleanup",

@@ -3,13 +3,13 @@ package routes
 import (
 	"context"
 
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 )
 
 // RegisterUtilRoutes registers all utility related routes
-func RegisterUtilRoutes(h *server.Hertz) {
-	utilsGroup := h.Group("/api/v1/utils")
+func RegisterUtilRoutes(r *gin.Engine) {
+	utilsGroup := r.Group("/api/v1/utils")
 	{
 		utilsGroup.GET("/health-check/",
 			middleware.WithHandler(healthCheckHandler))

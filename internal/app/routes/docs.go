@@ -1,30 +1,28 @@
 package routes
 
 import (
-	"context"
+	"net/http"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/cloudwego/hertz/pkg/protocol/consts"
+	"github.com/gin-gonic/gin"
 	"github.com/wangfenjin/mojito/pkg/openapi"
 )
 
 // RegisterDocsRoutes registers routes for API documentation
-func RegisterDocsRoutes(h *server.Hertz) {
+func RegisterDocsRoutes(r *gin.Engine) {
 	// Serve Swagger UI
-	docsGroup := h.Group("/docs")
+	docsGroup := r.Group("/docs")
 	{
 		// Serve the OpenAPI spec
-		docsGroup.GET("/openapi.json", func(ctx context.Context, c *app.RequestContext) {
-			c.File("./api/openapi.json")
+		docsGroup.GET("/openapi.json", func(ctx *gin.Context) {
+			ctx.File("./api/openapi.json")
 		})
 
 		// Serve Swagger UI using CDN
-		docsGroup.GET("/swagger/*any", func(ctx context.Context, c *app.RequestContext) {
+		docsGroup.GET("/swagger/*any", func(ctx *gin.Context) {
 			// Generate OpenAPI spec
 			err := openapi.GenerateSwaggerJSON("./api/openapi.json")
 			if err != nil {
-				c.AbortWithError(consts.StatusInternalServerError, err)
+				ctx.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
 			}
 
 			// HTML for Swagger UI using CDN
@@ -68,7 +66,7 @@ func RegisterDocsRoutes(h *server.Hertz) {
 </body>
 </html>
 `
-			c.Data(200, "text/html; charset=utf-8", []byte(swaggerHTML))
+			ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(swaggerHTML))
 		})
 	}
 }

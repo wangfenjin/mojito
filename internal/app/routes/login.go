@@ -4,16 +4,15 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/utils"
 )
 
 // RegisterLoginRoutes registers all login related routes
-func RegisterLoginRoutes(h *server.Hertz) {
-	loginGroup := h.Group("/api/v1")
+func RegisterLoginRoutes(r *gin.Engine) {
+	loginGroup := r.Group("/api/v1")
 	{
 		loginGroup.POST("/login/access-token",
 			middleware.WithHandler(loginAccessTokenHandler))
@@ -109,16 +108,14 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 	}, nil
 }
 
+type TestTokenRequest struct {
+	Token string `header:"Authorization" binding:"required"`
+}
+
 // Update handler signatures to use pointer returns
-func testTokenHandler(ctx context.Context, _ any) (*TestTokenResponse, error) {
-	c := ctx.Value("requestContext").(*app.RequestContext)
-
+func testTokenHandler(ctx context.Context, req *TestTokenRequest) (*TestTokenResponse, error) {
 	// Get token from Authorization header
-	authHeader := c.GetHeader("Authorization")
-	if len(authHeader) == 0 {
-		return nil, middleware.NewUnauthorizedError("missing authorization header")
-	}
-
+	authHeader := req.Token
 	// Extract token from "Bearer <token>"
 	tokenString := string(authHeader[7:])
 	claims, err := utils.ValidateToken(tokenString)

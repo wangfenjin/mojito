@@ -1,13 +1,11 @@
 package main
 
 import (
-	"context"
 	"log"
 	"os"
 
-	"github.com/cloudwego/hertz/pkg/app"
-	"github.com/cloudwego/hertz/pkg/app/server"
-	"github.com/hertz-contrib/cors"
+	"github.com/gin-contrib/cors"
+	"github.com/gin-gonic/gin"
 	"github.com/wangfenjin/mojito/internal/app/database"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
@@ -35,32 +33,25 @@ func main() {
 	itemRepo := repository.NewItemRepository(db)
 
 	// Create Hertz server
-	h := server.Default()
-	h.Use(middleware.LoggerMiddleware())
-
-	// Add CORS middleware
-	h.Use(cors.New(cors.Config{
-		AllowOrigins:     []string{"*"},
-		AllowMethods:     []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
-		AllowHeaders:     []string{"Origin", "Content-Type", "Content-Length", "Accept-Encoding", "X-CSRF-Token", "Authorization"},
-		ExposeHeaders:    []string{"Content-Length"},
-		AllowCredentials: true,
-		MaxAge:           12 * 60 * 60, // 12 hours
-	}))
+	r := gin.Default()
+	r.Use(cors.Default())
+	r.Use(middleware.LoggerMiddleware())
 
 	// Add middleware to inject repositories into context
-	h.Use(func(ctx context.Context, c *app.RequestContext) {
-		ctx = context.WithValue(ctx, "userRepository", userRepo)
-		ctx = context.WithValue(ctx, "itemRepository", itemRepo)
-		c.Next(ctx)
+	r.Use(func(c *gin.Context) {
+		c.Set("userRepository", userRepo)
+		c.Set("itemRepository", itemRepo)
+		c.Next()
 	})
 
 	// Set up API routes
-	routes.RegisterRoutes(h)
+	routes.RegisterRoutes(r)
 	if os.Getenv("ENV") != "production" {
-		routes.RegisterTestRoutes(h)
+		routes.RegisterTestRoutes(r)
 	}
 
 	// Start the server
-	h.Spin()
+	if err := r.Run(); err != nil {
+		panic(err)
+	}
 }

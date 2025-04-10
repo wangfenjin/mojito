@@ -1,14 +1,12 @@
 package routes
 
-import (
-	"github.com/cloudwego/hertz/pkg/app/server"
-)
+import "github.com/gin-gonic/gin"
 
 // RegisterRoutes registers all application routes
-func RegisterRoutes(h *server.Hertz) {
-	RegisterUtilRoutes(h)
-	RegisterLoginRoutes(h)
-	RegisterUsersRoutes(h)
-	RegisterItemsRoutes(h)
-	RegisterDocsRoutes(h)
+func RegisterRoutes(r *gin.Engine) {
+	RegisterUtilRoutes(r)
+	RegisterLoginRoutes(r)
+	RegisterUsersRoutes(r)
+	RegisterItemsRoutes(r)
+	RegisterDocsRoutes(r)
 }

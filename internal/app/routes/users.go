@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/cloudwego/hertz/pkg/app/server"
+	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
@@ -14,8 +14,8 @@ import (
 )
 
 // RegisterUsersRoutes registers all user related routes
-func RegisterUsersRoutes(h *server.Hertz) {
-	usersGroup := h.Group("/api/v1/users", middleware.RequireAuth())
+func RegisterUsersRoutes(r *gin.Engine) {
+	usersGroup := r.Group("/api/v1/users")
 	{
 		// Protected routes (require auth)
 		usersGroup.GET("/",
@@ -41,7 +41,7 @@ func RegisterUsersRoutes(h *server.Hertz) {
 	}
 
 	// Public routes (no auth required)
-	h.POST("/api/v1/users/signup",
+	r.POST("/api/v1/users/signup",
 		middleware.WithHandler(registerUserHandler))
 }
 
