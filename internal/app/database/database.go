@@ -2,12 +2,11 @@ package database
 
 import (
 	"fmt"
-	"log"
 	"os"
 
 	"github.com/go-gormigrate/gormigrate/v2"
-	"github.com/wangfenjin/mojito/internal/app/database/migrations"
-	"github.com/wangfenjin/mojito/internal/app/models"
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
+	"github.com/wangfenjin/mojito/pkg/migrations"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -37,10 +36,10 @@ func NewConnection(config *Config) (*gorm.DB, error) {
 	// Run migrations in development environment
 	if os.Getenv("ENV") != "production" {
 		if err := RunMigrations(db); err != nil {
-			log.Printf("Failed to run migrations: %v", err)
+			logger.GetLogger().Error("Failed to run migrations", "err", err)
 			return nil, err
 		}
-		log.Printf("Migrations completed successfully")
+		logger.GetLogger().Info("Migrations completed successfully")
 	}
 
 	return db, nil
@@ -48,8 +47,7 @@ func NewConnection(config *Config) (*gorm.DB, error) {
 
 func RunMigrations(db *gorm.DB) error {
 	// Get all registered model versions
-	registeredVersions := models.GetModelVersions()
-	migrations := migrations.GenerateMigration(registeredVersions)
+	migrations := migrations.GenerateMigration(migrations.GetModelVersions())
 	m := gormigrate.New(db, gormigrate.DefaultOptions, migrations)
 	return m.Migrate()
 }

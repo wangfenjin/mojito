@@ -1,4 +1,4 @@
-package models
+package migrations
 
 import "sort"
 
@@ -7,12 +7,6 @@ type ModelVersion struct {
 	Version  string // "1.0.0"
 	Current  interface{}
 	Previous interface{}
-}
-
-func init() {
-	RegisterModel("user", "1.0.0", &UserV1{}, nil)
-	RegisterModel("item", "1.0.1", &ItemV1{}, nil)
-	RegisterModel("user", "1.0.2", &UserV2{}, &UserV1{})
 }
 
 var registry []ModelVersion

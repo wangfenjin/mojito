@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/wangfenjin/mojito/internal/app/models"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
@@ -41,13 +40,13 @@ func TestGenerateSQL(t *testing.T) {
 	tests := []struct {
 		name     string
 		skip     bool
-		versions []models.ModelVersion
+		versions []ModelVersion
 		wantSQLs map[string][]string
 		wantErr  bool
 	}{
 		{
 			name: "create new table",
-			versions: []models.ModelVersion{
+			versions: []ModelVersion{
 				{
 					Version: "1.0.0",
 					Current: &struct {
@@ -72,7 +71,7 @@ func TestGenerateSQL(t *testing.T) {
 		},
 		{
 			name: "add column and index",
-			versions: []models.ModelVersion{
+			versions: []ModelVersion{
 				{
 					Version: "1.0.0",
 					Current: &struct {
@@ -117,7 +116,7 @@ func TestGenerateSQL(t *testing.T) {
 		},
 		{
 			name: "composite index",
-			versions: []models.ModelVersion{
+			versions: []ModelVersion{
 				{
 					Version: "1.0.0",
 					Current: &struct {
@@ -164,7 +163,7 @@ func TestGenerateSQL(t *testing.T) {
 		},
 		{
 			name: "deprecate columns",
-			versions: []models.ModelVersion{
+			versions: []ModelVersion{
 				{
 					Version: "1.0.0",
 					Current: &struct {
@@ -196,13 +195,13 @@ func TestGenerateSQL(t *testing.T) {
 		},
 		{
 			name:     "empty migration",
-			versions: []models.ModelVersion{},
+			versions: []ModelVersion{},
 			wantErr:  true,
 		},
 		{
 			name: "add foreign key",
 			skip: true,
-			versions: []models.ModelVersion{
+			versions: []ModelVersion{
 				{
 					Version: "1.0.0",
 					Current: &struct {

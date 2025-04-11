@@ -8,13 +8,12 @@ import (
 	"strings"
 
 	"github.com/go-gormigrate/gormigrate/v2"
-	"github.com/wangfenjin/mojito/internal/app/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/schema"
 )
 
-func GenerateMigration(models []models.ModelVersion) []*gormigrate.Migration {
-	var migrations []*gormigrate.Migration
+func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
+	var migrationsList []*gormigrate.Migration
 
 	// No need for initial migration to create version table anymore
 
@@ -57,9 +56,9 @@ func GenerateMigration(models []models.ModelVersion) []*gormigrate.Migration {
 				return handleRollback(tx, mv.Previous, mv.Current)
 			},
 		}
-		migrations = append(migrations, migration)
+		migrationsList = append(migrationsList, migration)
 	}
-	return migrations
+	return migrationsList
 }
 
 // Remove handleTableRename function
@@ -243,6 +242,19 @@ func columnNeedsAlter(oldField, newField *schema.Field) bool {
 
 	// Compare default value
 	if oldField.HasDefaultValue != newField.HasDefaultValue {
+		return true
+	}
+
+	// Compare auto timestamp settings
+	oldAutoCreate := oldField.AutoCreateTime > 0
+	newAutoCreate := newField.AutoCreateTime > 0
+	if oldAutoCreate != newAutoCreate {
+		return true
+	}
+
+	oldAutoUpdate := oldField.AutoUpdateTime > 0
+	newAutoUpdate := newField.AutoUpdateTime > 0
+	if oldAutoUpdate != newAutoUpdate {
 		return true
 	}
 

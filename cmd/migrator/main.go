@@ -6,8 +6,9 @@ import (
 	"os"
 
 	"github.com/wangfenjin/mojito/internal/app/database"
-	"github.com/wangfenjin/mojito/internal/app/database/migrations"
-	"github.com/wangfenjin/mojito/internal/app/models"
+	// Import models to register them with gorm
+	_ "github.com/wangfenjin/mojito/internal/app/models"
+	"github.com/wangfenjin/mojito/pkg/migrations"
 	"gorm.io/gorm"
 )
 
@@ -35,7 +36,7 @@ func main() {
 
 func generateMigrationSQL(db *gorm.DB) error {
 	// Get all model versions
-	modelVersions := models.GetModelVersions()
+	modelVersions := migrations.GetModelVersions()
 	if len(modelVersions) == 0 {
 		return fmt.Errorf("no model versions found")
 	}

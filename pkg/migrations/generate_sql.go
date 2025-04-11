@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-gormigrate/gormigrate/v2"
-	"github.com/wangfenjin/mojito/internal/app/models"
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 )
@@ -43,7 +42,7 @@ func (l *SQLLogger) Trace(ctx context.Context, begin time.Time, fc func() (strin
 	}
 }
 
-func GenerateSQL(db *gorm.DB, modelVersions []models.ModelVersion) (map[string]string, error) {
+func GenerateSQL(db *gorm.DB, modelVersions []ModelVersion) (map[string]string, error) {
 	// Get all model versions
 	migrationList := GenerateMigration(modelVersions)
 	if len(migrationList) == 0 {
