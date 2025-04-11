@@ -19,7 +19,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		if !openapi.Registered(c.Request.Method, c.FullPath()) {
 			ms := c.HandlerNames()
 			handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
-			openapi.RegisterHandler(c.Request.Method, c.FullPath(), handlerName, nil, reflect.TypeOf((*Resp)(nil)).Elem(), ms...)
+			openapi.RegisterHandler(c.Request.Method, c.FullPath(), handlerName, reflect.TypeOf((*Req)(nil)).Elem(), reflect.TypeOf((*Resp)(nil)).Elem(), ms...)
 			logger.GetLogger().Info("Registering handler", "name", handlerName, "path", string(c.FullPath()), "method", string(c.Request.Method), "middleware", ms)
 		}
 
