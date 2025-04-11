@@ -610,10 +610,14 @@ func generateComponents() map[string]interface{} {
 
 	// Add security schemes
 	components["securitySchemes"] = map[string]interface{}{
-		"bearerAuth": map[string]interface{}{
-			"type":         "http",
-			"scheme":       "bearer",
-			"bearerFormat": "JWT",
+		"OAuth2PasswordBearer": map[string]interface{}{
+			"type": "oauth2",
+			"flows": map[string]interface{}{
+				"password": map[string]interface{}{
+					"scopes":   map[string]interface{}{},
+					"tokenUrl": "/api/v1/login/access-token",
+				},
+			},
 		},
 	}
 
