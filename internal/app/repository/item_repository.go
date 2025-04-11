@@ -78,9 +78,7 @@ func (r *ItemRepository) List(ctx context.Context, ownerID uuid.UUID, skip, limi
 }
 
 func (r *ItemRepository) CleanupTestData(ctx context.Context) error {
+	// First delete all records with global update allowed
 	result := r.db.WithContext(ctx).Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&models.Item{})
-	if result.Error != nil {
-		return result.Error
-	}
-	return r.db.WithContext(ctx).Exec("TRUNCATE TABLE items RESTART IDENTITY CASCADE").Error
+	return result.Error
 }

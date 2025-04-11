@@ -8,22 +8,50 @@ import (
 	"github.com/wangfenjin/mojito/internal/pkg/logger"
 	"github.com/wangfenjin/mojito/pkg/migrations"
 	"gorm.io/driver/postgres"
+	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
-// Config holds database configuration
+// ConnectionParams holds the parameters for connecting to the database
 type ConnectionParams struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	DBName   string
-	SSLMode  string
-	TimeZone string
+	Type       string
+	Host       string
+	Port       int
+	User       string
+	Password   string
+	DBName     string
+	SSLMode    string
+	TimeZone   string
+	SQLitePath string
 }
 
-// Connect creates a new database connection
+// Connect establishes a connection to the database
 func Connect(params ConnectionParams) (*gorm.DB, error) {
+	db, err := connect(params)
+	if err != nil {
+		return nil, err
+	}
+	// Run migrations in development environment
+	if os.Getenv("ENV") != "production" {
+		if err := RunMigrations(db); err != nil {
+			logger.GetLogger().Error("Failed to run migrations", "err", err)
+			return nil, err
+		}
+	}
+	return db, nil
+}
+func connect(params ConnectionParams) (*gorm.DB, error) {
+	// Check environment - use SQLite for local development
+	if params.Type == "sqlite3" {
+		return connectSQLite(params.SQLitePath)
+	}
+
+	// Default to PostgreSQL
+	return connectPostgres(params)
+}
+
+// connectPostgres establishes a connection to a PostgreSQL database
+func connectPostgres(params ConnectionParams) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
 		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
 		params.Host, params.Port, params.User, params.Password, params.DBName, params.SSLMode, params.TimeZone,
@@ -31,16 +59,25 @@ func Connect(params ConnectionParams) (*gorm.DB, error) {
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to database: %w", err)
+		return nil, fmt.Errorf("failed to connect to PostgreSQL database: %w", err)
 	}
 
-	// Run migrations in development environment
-	if os.Getenv("ENV") != "production" {
-		if err := RunMigrations(db); err != nil {
-			logger.GetLogger().Error("Failed to run migrations", "err", err)
-			return nil, err
+	return db, nil
+}
+
+// connectSQLite establishes a connection to a SQLite database
+func connectSQLite(dbPath string) (*gorm.DB, error) {
+	// Ensure directory exists
+	dir := dbPath[:len(dbPath)-len("/mojito.db")]
+	if dir != "" && dir != "." {
+		if err := os.MkdirAll(dir, 0755); err != nil {
+			return nil, fmt.Errorf("failed to create directory for SQLite database: %w", err)
 		}
-		logger.GetLogger().Info("Migrations completed successfully")
+	}
+
+	db, err := gorm.Open(sqlite.Open(dbPath), &gorm.Config{})
+	if err != nil {
+		return nil, fmt.Errorf("failed to connect to SQLite database: %w", err)
 	}
 
 	return db, nil

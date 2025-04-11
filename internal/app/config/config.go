@@ -29,13 +29,15 @@ type ServerConfig struct {
 
 // DatabaseConfig holds all database-related configuration
 type DatabaseConfig struct {
-	Host     string
-	Port     int
-	User     string
-	Password string
-	Name     string
-	SSLMode  string
-	TimeZone string
+	Type       string // "postgres" or "sqlite"
+	Host       string
+	Port       int
+	User       string
+	Password   string
+	Name       string
+	SSLMode    string
+	TimeZone   string
+	SQLitePath string // Path for SQLite database file
 }
 
 // AuthConfig holds all authentication-related configuration
@@ -81,7 +83,7 @@ func Load(configPath string) (*Config, error) {
 	} else {
 		// Look for config in the working directory
 		v.AddConfigPath(".")
-		v.AddConfigPath("./config")
+		v.AddConfigPath("./configs")
 		v.SetConfigName("config")
 	}
 
@@ -130,6 +132,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("server.shutdownTimeout", 5)
 
 	// Database defaults
+	v.SetDefault("database.type", "postgres") // Default to postgres
 	v.SetDefault("database.host", "localhost")
 	v.SetDefault("database.port", 5432)
 	v.SetDefault("database.user", "postgres")
@@ -137,6 +140,7 @@ func setDefaults(v *viper.Viper) {
 	v.SetDefault("database.name", "mojito")
 	v.SetDefault("database.sslMode", "disable")
 	v.SetDefault("database.timeZone", "UTC")
+	v.SetDefault("database.sqlitePath", "./mojito.db") // Default SQLite path
 
 	// Auth defaults
 	v.SetDefault("auth.secretKey", "supersecretkey")

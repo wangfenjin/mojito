@@ -107,13 +107,7 @@ func (r *UserRepository) Delete(ctx context.Context, id uuid.UUID) error {
 func (r *UserRepository) CleanupTestData(ctx context.Context) error {
 	// Delete all users, including soft-deleted ones
 	result := r.db.WithContext(ctx).Session(&gorm.Session{AllowGlobalUpdate: true}).Unscoped().Delete(&models.User{})
-	if result.Error != nil {
-		return result.Error
-	}
-
-	// Reset the auto-increment sequence if any
-	err := r.db.WithContext(ctx).Exec("TRUNCATE TABLE users RESTART IDENTITY CASCADE").Error
-	return err
+	return result.Error
 }
 
 // Update updates an existing user in the database

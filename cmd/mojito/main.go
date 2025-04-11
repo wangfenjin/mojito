@@ -11,24 +11,29 @@ import (
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/routes"
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
 )
 
 func main() {
 	// Load configuration
 	cfg, err := config.Load("")
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		logger.GetLogger().Error("Failed to load configuration", "err", err)
+		panic(err)
 	}
+	logger.GetLogger().Info("Configuration loaded", "config", cfg)
 
 	// Initialize database connection
 	db, err := database.Connect(database.ConnectionParams{
-		Host:     cfg.Database.Host,
-		Port:     cfg.Database.Port,
-		User:     cfg.Database.User,
-		Password: cfg.Database.Password,
-		DBName:   cfg.Database.Name,
-		SSLMode:  cfg.Database.SSLMode,
-		TimeZone: cfg.Database.TimeZone,
+		Type:       cfg.Database.Type,
+		Host:       cfg.Database.Host,
+		Port:       cfg.Database.Port,
+		User:       cfg.Database.User,
+		Password:   cfg.Database.Password,
+		DBName:     cfg.Database.Name,
+		SSLMode:    cfg.Database.SSLMode,
+		TimeZone:   cfg.Database.TimeZone,
+		SQLitePath: cfg.Database.SQLitePath,
 	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)

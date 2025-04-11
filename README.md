@@ -39,6 +39,9 @@ The following features are planned for future releases:
    ```
 4. Generate database migration sqls:
    ```bash
+   # start the database, generation only support postgres
+   docker compose up -d
+   # generate sqls
    make run-migrate
    ```
 5. Access the API docs: http://localhost:8080/docs/swagger/
