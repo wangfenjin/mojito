@@ -5,7 +5,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/wangfenjin/mojito/internal/app/config"
 	"github.com/wangfenjin/mojito/internal/app/database"
+
 	// Import models to register them with gorm
 	_ "github.com/wangfenjin/mojito/internal/app/models"
 	"github.com/wangfenjin/mojito/pkg/migrations"
@@ -13,18 +15,24 @@ import (
 )
 
 func main() {
-	config := &database.Config{
-		Host:     os.Getenv("DB_HOST"),
-		Port:     os.Getenv("DB_PORT"),
-		User:     os.Getenv("DB_USER"),
-		Password: os.Getenv("DB_PASSWORD"),
-		DBName:   os.Getenv("DB_NAME"),
-		SSLMode:  os.Getenv("DB_SSLMODE"),
+	// Load configuration
+	cfg, err := config.Load("")
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	db, err := database.NewConnection(config)
+	// Initialize database connection
+	db, err := database.Connect(database.ConnectionParams{
+		Host:     cfg.Database.Host,
+		Port:     cfg.Database.Port,
+		User:     cfg.Database.User,
+		Password: cfg.Database.Password,
+		DBName:   cfg.Database.Name,
+		SSLMode:  cfg.Database.SSLMode,
+		TimeZone: cfg.Database.TimeZone,
+	})
 	if err != nil {
-		log.Fatal(err)
+		log.Fatalf("Failed to connect to database: %v", err)
 	}
 
 	if err := generateMigrationSQL(db); err != nil {

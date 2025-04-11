@@ -60,12 +60,6 @@ build-migrator:
 # Generate migration SQL files
 .PHONY: gen-migration
 gen-migration: build-migrator
-	@DB_HOST=localhost \
-	DB_PORT=5432 \
-	DB_USER=postgres \
-	DB_PASSWORD=postgres \
-	DB_NAME=mojito \
-	DB_SSLMODE=disable \
 	./bin/migrator
 
 # Clean all build artifacts and generated files
@@ -75,3 +69,17 @@ clean:
 	@rm -rf bin/
 	@rm -rf scripts/db/
 	@rm -rf coverage.out coverage.html
+
+
+# API Testing with Hurl
+.PHONY: test-api
+test-api:
+	@echo "Running API tests with Hurl..."
+	@hurl --test --variable host=http://localhost:8080 tests/login.hurl
+	@hurl --test --variable host=http://localhost:8080 tests/users.hurl
+	@hurl --test --variable host=http://localhost:8080 tests/items.hurl
+
+# Run all tests (unit tests and API tests)
+.PHONY: test-all
+test-all: test test-api
+	@echo "All tests completed!"

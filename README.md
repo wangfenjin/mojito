@@ -22,3 +22,26 @@ The following features are planned for future releases:
 - 🗃️ Database migration tool integration for version-controlled schema changes
 - 🐳 Docker support with multi-stage builds and optimized images
 - 🔄 GitHub Actions CI/CD pipeline with automated testing and deployment
+
+## Getting Started
+
+1. Run the server:
+   ```bash
+   make watch
+   ```
+2. Run unit tests:
+   ```bash
+   make test
+   ```
+3. Run API tests:
+   ```bash
+   make test-api
+   ```
+4. Generate database migration sqls:
+   ```bash
+   make run-migrate
+   ```
+5. Access the API docs: http://localhost:8080/docs/swagger/
+
+## License
+This project is licensed under the [MIT License](LICENSE).
