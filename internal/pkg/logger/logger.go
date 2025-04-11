@@ -6,7 +6,11 @@ import (
 	"os"
 )
 
-var log *slog.Logger
+var log *logger
+
+type logger struct {
+	slog.Logger
+}
 
 // Initialize sets up the logger
 func Initialize(env string) {
@@ -39,12 +43,13 @@ func Initialize(env string) {
 		})
 	}
 
-	log = slog.New(handler)
-	slog.SetDefault(log)
+	log = &logger{
+		Logger: *slog.New(handler),
+	}
 }
 
 // GetLogger returns the global logger instance
-func GetLogger() *slog.Logger {
+func GetLogger() *logger {
 	if log == nil {
 		Initialize(os.Getenv("ENV"))
 	}

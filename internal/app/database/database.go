@@ -12,25 +12,26 @@ import (
 )
 
 // Config holds database configuration
-type Config struct {
+type ConnectionParams struct {
 	Host     string
-	Port     string
+	Port     int
 	User     string
 	Password string
 	DBName   string
 	SSLMode  string
+	TimeZone string
 }
 
-// NewConnection creates a new database connection
-func NewConnection(config *Config) (*gorm.DB, error) {
+// Connect creates a new database connection
+func Connect(params ConnectionParams) (*gorm.DB, error) {
 	dsn := fmt.Sprintf(
-		"host=%s port=%s user=%s password=%s dbname=%s sslmode=%s",
-		config.Host, config.Port, config.User, config.Password, config.DBName, config.SSLMode,
+		"host=%s port=%d user=%s password=%s dbname=%s sslmode=%s TimeZone=%s",
+		params.Host, params.Port, params.User, params.Password, params.DBName, params.SSLMode, params.TimeZone,
 	)
 
 	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to connect to database: %w", err)
 	}
 
 	// Run migrations in development environment

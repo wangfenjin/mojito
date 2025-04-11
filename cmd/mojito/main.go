@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/wangfenjin/mojito/internal/app/config"
 	"github.com/wangfenjin/mojito/internal/app/database"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
@@ -13,17 +14,22 @@ import (
 )
 
 func main() {
-	// Initialize database connection
-	dbConfig := &database.Config{
-		Host:     "localhost",
-		Port:     "5432",
-		User:     "postgres",
-		Password: "postgres",
-		DBName:   "mojito",
-		SSLMode:  "disable",
+	// Load configuration
+	cfg, err := config.Load("")
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	db, err := database.NewConnection(dbConfig)
+	// Initialize database connection
+	db, err := database.Connect(database.ConnectionParams{
+		Host:     cfg.Database.Host,
+		Port:     cfg.Database.Port,
+		User:     cfg.Database.User,
+		Password: cfg.Database.Password,
+		DBName:   cfg.Database.Name,
+		SSLMode:  cfg.Database.SSLMode,
+		TimeZone: cfg.Database.TimeZone,
+	})
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
 	}
