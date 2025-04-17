@@ -31,7 +31,7 @@ jobs:
           fi
 
       - name: Run golangci-lint
-        run: golangci-lint run ./...
+        run: ./bin/golangci-lint run ./...
 
       - name: Build
         run: go build -v ./cmd/mojito
