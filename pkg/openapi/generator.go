@@ -532,7 +532,6 @@ func getTypeSchema(t reflect.Type) map[string]interface{} {
 // getStructProperties extracts properties from a struct type
 func getStructProperties(t reflect.Type) map[string]interface{} {
 	properties := make(map[string]interface{})
-	requiredFields := []string{}
 
 	// Handle nil type
 	if t == nil {
@@ -567,10 +566,11 @@ func getStructProperties(t reflect.Type) map[string]interface{} {
 		name := parts[0]
 
 		// Check if the field is required
-		bindingTag := field.Tag.Get("binding")
-		if bindingTag != "" && strings.Contains(bindingTag, "required") {
-			requiredFields = append(requiredFields, name)
-		}
+		// requiredFields := []string{}
+		// bindingTag := field.Tag.Get("binding")
+		// if bindingTag != "" && strings.Contains(bindingTag, "required") {
+		// 	requiredFields = append(requiredFields, name)
+		// }
 
 		properties[name] = getTypeSchema(field.Type)
 	}

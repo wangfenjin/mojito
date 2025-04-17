@@ -24,10 +24,10 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		}
 
 		var req Req
-		c.ShouldBind(&req)
-		c.ShouldBindUri(&req)
-		c.ShouldBindHeader(&req)
-		c.ShouldBindQuery(&req)
+		_ = c.ShouldBind(&req)
+		_ = c.ShouldBindUri(&req)
+		_ = c.ShouldBindHeader(&req)
+		_ = c.ShouldBindQuery(&req)
 		if err := binding.Validator.ValidateStruct(req); err != nil {
 			logger.GetLogger().Error("Bind error", "error", err)
 			c.AbortWithStatusJSON(http.StatusBadRequest, NewBadRequestError(err.Error()))

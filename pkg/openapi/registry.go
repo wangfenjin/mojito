@@ -4,6 +4,9 @@ import (
 	"reflect"
 	"regexp"
 	"strings"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // handlerInfo stores information about a route
@@ -80,8 +83,9 @@ func handlerPathToTitle(fullPath string) string {
 	words = append(words, name[start:])
 
 	// Capitalize first letter of each word
+	caser := cases.Title(language.English)
 	for i, word := range words {
-		words[i] = strings.Title(strings.ToLower(word))
+		words[i] = caser.String(strings.ToLower(word))
 	}
 
 	return strings.Join(words, " ")
