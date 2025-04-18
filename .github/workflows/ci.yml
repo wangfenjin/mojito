@@ -71,6 +71,19 @@ jobs:
           hurl --test --variable host=http://localhost:8080 tests/utils.hurl
           curl http://localhost:8080/api/v1/test/shutdown || true
 
+      # Test migrator tool
+      - name: Test migrator tool
+        run: |
+          mkdir -p ./scripts/db
+          rm -rf ./scripts/db/*
+          go build -cover -o migrator ./cmd/migrator
+          GOCOVERDIR=covdatafiles ./migrator
+          if [ "$(ls -A scripts/db | wc -l)" -eq 0 ]; then
+            echo "No migration files were generated"
+            exit 1
+          fi
+          echo "Migrator test passed successfully"
+
       - name: post process coverage profiles
         run: |
           go tool covdata percent -i=covdatafiles
