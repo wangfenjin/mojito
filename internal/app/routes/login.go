@@ -28,7 +28,7 @@ func RegisterLoginRoutes(r *gin.Engine) {
 			middleware.WithHandler(resetPasswordHandler))
 
 		loginGroup.POST("/password-recovery-html-content/:email",
-			middleware.WithHandler(recoverPasswordHtmlContentHandler))
+			middleware.WithHandler(recoverPasswordHTMLContentHandler))
 	}
 }
 
@@ -51,7 +51,7 @@ type ResetPasswordRequest struct {
 	Password string `json:"password" binding:"required,min=6"`
 }
 
-type RecoverPasswordHtmlContentRequest struct {
+type RecoverPasswordHTMLContentRequest struct {
 	Email string `uri:"email" binding:"required,email"`
 }
 
@@ -158,7 +158,7 @@ func resetPasswordHandler(ctx context.Context, req ResetPasswordRequest) (*Messa
 	}, nil
 }
 
-func recoverPasswordHtmlContentHandler(ctx context.Context, req RecoverPasswordHtmlContentRequest) (*HTMLContentResponse, error) {
+func recoverPasswordHTMLContentHandler(ctx context.Context, req RecoverPasswordHTMLContentRequest) (*HTMLContentResponse, error) {
 	return &HTMLContentResponse{
 		HTMLContent: "<h1>Reset Your Password</h1><p>Click the link below to reset your password.</p>",
 	}, nil

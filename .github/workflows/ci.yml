@@ -19,9 +19,6 @@ jobs:
           go-version: '1.24'
           cache: true
 
-      - name: Install golangci-lint
-        run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s v2.1.2
-
       - name: Check formatting
         run: |
           if [ "$(gofmt -l . | wc -l)" -gt 0 ]; then
@@ -30,8 +27,14 @@ jobs:
             exit 1
           fi
 
-      - name: Run golangci-lint
-        run: ./bin/golangci-lint run ./...
+      - name: Run Revive Action by pulling pre-built image
+        uses: docker://ghcr.io/morphy2k/revive-action:v2
+        with:
+          config: ./build/ci/revive.toml
+      # - name: Install golangci-lint
+      #   run: curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/HEAD/install.sh | sh -s v2.1.2
+      # - name: Run golangci-lint
+      #   run: ./bin/golangci-lint run ./...
 
       - name: Build
         run: go build -v ./cmd/mojito
@@ -39,11 +42,11 @@ jobs:
       - name: Run unit tests with coverage
         run: go test -race -coverprofile=coverage.txt -covermode=atomic ./...
 
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          file: ./coverage.txt
-          fail_ci_if_error: false
+      # - name: Upload coverage to Codecov
+      #   uses: codecov/codecov-action@v3
+      #   with:
+      #     file: ./coverage.txt
+      #     fail_ci_if_error: false
 
   integration-test:
     name: Integration Tests
@@ -51,11 +54,11 @@ jobs:
     needs: lint-and-build
     services:
       postgres:
-        image: postgres:14
+        image: postgres:17
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
-          POSTGRES_DB: mojito_test
+          POSTGRES_DB: mojito
         ports:
           - 5432:5432
         options: >-
@@ -79,7 +82,7 @@ jobs:
           sudo dpkg -i hurl_2.0.1_amd64.deb
 
       - name: Create test config
-        run: mv config.postgres.yaml config.yaml
+        run: mv ./config/config.postgres.yaml ./config/config.yaml
 
       - name: Build and start server with coverage
         run: |

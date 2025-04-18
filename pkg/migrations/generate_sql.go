@@ -74,7 +74,7 @@ func GenerateSQL(db *gorm.DB, modelVersions []ModelVersion) (map[string]string, 
 	return sqls, nil
 }
 
-func generateSQL(db *gorm.DB, m *gormigrate.Migration, is_rollback bool) (string, error) {
+func generateSQL(db *gorm.DB, m *gormigrate.Migration, isRollback bool) (string, error) {
 	logger := &SQLLogger{
 		Statements: make([]string, 0),
 		LogLevel:   logger.Info, // Set to Info to capture all SQL statements
@@ -88,7 +88,7 @@ func generateSQL(db *gorm.DB, m *gormigrate.Migration, is_rollback bool) (string
 	})
 
 	// Run migration
-	if is_rollback {
+	if isRollback {
 		if err := m.Rollback(dryDB); err != nil {
 			return "", fmt.Errorf("failed to generate SQL for rollback migration %s: %w", m.ID, err)
 		}

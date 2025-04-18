@@ -232,7 +232,7 @@ func createOperation(
 			}
 
 			// Handle JSON data
-			if _, hasJson := fieldTags[TypeJson]; hasJson {
+			if _, hasJSON := fieldTags[TypeJSON]; hasJSON {
 				operation["requestBody"] = map[string]interface{}{
 					"content": map[string]interface{}{
 						"application/json": map[string]interface{}{
@@ -255,8 +255,8 @@ func createOperation(
 }
 
 const (
-	TypeJson   = "json"
-	TypeUri    = "uri"
+	TypeJSON   = "json"
+	TypeURI    = "uri"
 	TypeForm   = "form"
 	TypeHeader = "header"
 	TypeQuery  = "query"
@@ -290,15 +290,15 @@ func getTypeFieldTags(t reflect.Type) map[string][]FieldInfo {
 		if jsonTag, ok := field.Tag.Lookup("json"); ok {
 			jsonField := FieldInfo{
 				Name: jsonTag,
-				Type: TypeJson,
+				Type: TypeJSON,
 			}
-			fieldsInfo[TypeJson] = append(fieldsInfo[TypeJson], jsonField)
+			fieldsInfo[TypeJSON] = append(fieldsInfo[TypeJSON], jsonField)
 		} else if uriTag, ok := field.Tag.Lookup("uri"); ok {
 			uriField := FieldInfo{
 				Name: uriTag,
-				Type: TypeUri,
+				Type: TypeURI,
 			}
-			fieldsInfo[TypeUri] = append(fieldsInfo[TypeUri], uriField)
+			fieldsInfo[TypeURI] = append(fieldsInfo[TypeURI], uriField)
 		} else if formTag, ok := field.Tag.Lookup("form"); ok {
 			formField := FieldInfo{
 				Name: formTag,
