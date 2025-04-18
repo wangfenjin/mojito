@@ -4,7 +4,9 @@ package migrations
 import (
 	"fmt"
 	"log"
+	"maps"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -289,7 +291,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	newIndexes := newStmt.Schema.ParseIndexes()
 
 	// 检查索引重命名
-	for oldName, oldIdx := range oldIndexes {
+	for _, oldName := range slices.Sorted(maps.Keys(oldIndexes)) {
+		oldIdx := oldIndexes[oldName]
 		if !hasIndex(newIndexes, oldName) {
 			// 查找可能是重命名的索引
 			for newName, newIdx := range newIndexes {
@@ -321,7 +324,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	}
 
 	// Drop removed indexes
-	for _, oldIdx := range oldIndexes {
+	for _, oldName := range slices.Sorted(maps.Keys(oldIndexes)) {
+		oldIdx := oldIndexes[oldName]
 		if !hasIndex(newIndexes, oldIdx.Name) {
 			if err := tx.Migrator().DropIndex(newModel, oldIdx.Name); err != nil {
 				return err
@@ -330,7 +334,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	}
 
 	// Create new indexes
-	for _, newIdx := range newIndexes {
+	for _, newName := range slices.Sorted(maps.Keys(newIndexes)) {
+		newIdx := newIndexes[newName]
 		if !hasIndex(oldIndexes, newIdx.Name) {
 			if err := tx.Migrator().CreateIndex(newModel, newIdx.Name); err != nil {
 				return err

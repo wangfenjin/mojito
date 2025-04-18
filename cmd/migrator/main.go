@@ -17,7 +17,7 @@ import (
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load("./config/config-postgres.yaml")
+	cfg, err := config.Load("./config/config.postgres.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
