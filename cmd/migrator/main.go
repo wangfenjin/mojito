@@ -1,3 +1,4 @@
+// Package main is the entry point for the database migration tool
 package main
 
 import (
@@ -16,7 +17,7 @@ import (
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load("./config/config-postgres.yaml")
+	cfg, err := config.Load("./config/config.postgres.yaml")
 	if err != nil {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}

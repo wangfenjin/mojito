@@ -13,7 +13,7 @@ func (userBase) TableName() string {
 	return "users"
 }
 
-// User represents a user in the system
+// UserV1 represents the first version of the user model
 type UserV1 struct {
 	userBase
 	ID          uuid.UUID      `gorm:"type:uuid;primary_key"`
@@ -27,7 +27,7 @@ type UserV1 struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
 
-// User represents a user in the system
+// UserV2 represents the second version of the user model with additional fields
 type UserV2 struct {
 	userBase
 	ID          uuid.UUID      `gorm:"type:uuid;primary_key"`
@@ -42,10 +42,12 @@ type UserV2 struct {
 	DeletedAt   gorm.DeletedAt `gorm:"index"`
 }
 
+// User is the model for the user table
+// Update this to the latest version of the user dat
 type User = UserV2
 
 // BeforeCreate will set a UUID rather than numeric ID
-func (u *User) BeforeCreate(tx *gorm.DB) error {
+func (u *User) BeforeCreate(_ *gorm.DB) error {
 	if u.ID == uuid.Nil {
 		u.ID = uuid.New()
 	}

@@ -1,3 +1,4 @@
+// Package database provides database connection and migration functionality
 package database
 
 import (
@@ -83,6 +84,7 @@ func connectSQLite(dbPath string) (*gorm.DB, error) {
 	return db, nil
 }
 
+// RunMigrations executes database migrations for all registered models
 func RunMigrations(db *gorm.DB) error {
 	// Get all registered model versions
 	migrations := migrations.GenerateMigration(migrations.GetModelVersions())

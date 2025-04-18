@@ -18,16 +18,15 @@ func RegisterUtilRoutes(r *gin.Engine) {
 	}
 }
 
-// Update handler signatures
-// Add response types
+// HealthCheckResponse is the response for the health check
 type HealthCheckResponse struct {
 	Status bool `json:"status"`
 }
 
-func healthCheckHandler(ctx context.Context, _ any) (*HealthCheckResponse, error) {
+func healthCheckHandler(_ context.Context, _ any) (*HealthCheckResponse, error) {
 	return &HealthCheckResponse{Status: true}, nil
 }
 
-func testEmailHandler(ctx context.Context, _ any) (*MessageResponse, error) {
+func testEmailHandler(_ context.Context, _ any) (*MessageResponse, error) {
 	panic("Not implemented: testEmailHandler")
 }

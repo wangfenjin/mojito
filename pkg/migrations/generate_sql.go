@@ -11,37 +11,43 @@ import (
 	"gorm.io/gorm/logger"
 )
 
-// Add this type at the top of the file after imports
+// SQLLogger is a custom logger that captures SQL statements
 type SQLLogger struct {
 	Statements []string
 	LogLevel   logger.LogLevel
 }
 
+// LogMode sets the log level
 func (l *SQLLogger) LogMode(level logger.LogLevel) logger.Interface {
 	newLogger := *l
 	newLogger.LogLevel = level
 	return &newLogger
 }
 
-func (l *SQLLogger) Info(ctx context.Context, msg string, data ...interface{}) {
+// Info is a no-op
+func (l *SQLLogger) Info(_ context.Context, _ string, _ ...interface{}) {
 	// We only care about SQL statements, so this is empty
 }
 
-func (l *SQLLogger) Warn(ctx context.Context, msg string, data ...interface{}) {
+// Warn is a no-op
+func (l *SQLLogger) Warn(_ context.Context, _ string, _ ...interface{}) {
 	// We only care about SQL statements, so this is empty
 }
 
-func (l *SQLLogger) Error(ctx context.Context, msg string, data ...interface{}) {
+// Error is a no-op
+func (l *SQLLogger) Error(_ context.Context, _ string, _ ...interface{}) {
 	// We only care about SQL statements, so this is empty
 }
 
-func (l *SQLLogger) Trace(ctx context.Context, begin time.Time, fc func() (string, int64), err error) {
+// Trace logs the SQL statement
+func (l *SQLLogger) Trace(_ context.Context, _ time.Time, fc func() (string, int64), _ error) {
 	sql, _ := fc()
 	if sql != "" && !strings.HasPrefix(strings.ToUpper(strings.TrimSpace(sql)), "SELECT") {
 		l.Statements = append(l.Statements, sql)
 	}
 }
 
+// GenerateSQL generates SQL statements for the given model versions
 func GenerateSQL(db *gorm.DB, modelVersions []ModelVersion) (map[string]string, error) {
 	// Get all model versions
 	migrationList := GenerateMigration(modelVersions)

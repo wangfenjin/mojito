@@ -48,6 +48,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 	}
 }
 
+// RequireAuth creates middleware that requires authentication
 func RequireAuth() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		token := c.GetHeader("Authorization")

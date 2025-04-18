@@ -1,3 +1,4 @@
+// Package models contains the data models used throughout the application
 package models
 
 import "github.com/wangfenjin/mojito/pkg/migrations"

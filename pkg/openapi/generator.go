@@ -1,3 +1,4 @@
+// Package openapi provides functionality for generating OpenAPI documentation
 package openapi
 
 import (
@@ -22,8 +23,8 @@ type SwaggerInfo struct {
 	BasePath    string
 }
 
-// OpenAPISpec represents the OpenAPI specification structure
-type OpenAPISpec struct {
+// Spec represents the OpenAPI specification structure
+type Spec struct {
 	OpenAPI    string                 `json:"openapi"`
 	Info       map[string]interface{} `json:"info"`
 	Servers    []map[string]string    `json:"servers,omitempty"`
@@ -31,7 +32,7 @@ type OpenAPISpec struct {
 	Components map[string]interface{} `json:"components"`
 }
 
-// Default swagger documentation info
+// SwaggerDoc is the default swagger documentation info
 var SwaggerDoc = SwaggerInfo{
 	Title:       "Mojito API",
 	Description: "API documentation for Mojito backend",
@@ -42,7 +43,7 @@ var SwaggerDoc = SwaggerInfo{
 
 // GenerateSwaggerJSON generates the OpenAPI specification JSON file
 func GenerateSwaggerJSON(outputPath string) error {
-	spec := OpenAPISpec{
+	spec := Spec{
 		OpenAPI: "3.1.0",
 		Info: map[string]interface{}{
 			"title":       SwaggerDoc.Title,
@@ -254,14 +255,17 @@ func createOperation(
 	return operation
 }
 
+// Constants for content types
 const (
-	TypeJSON   = "json"
+	// TypeJSON represents the JSON content type
+	TypeJSON   = "application/json"
 	TypeURI    = "uri"
 	TypeForm   = "form"
 	TypeHeader = "header"
 	TypeQuery  = "query"
 )
 
+// FieldInfo contains information about a struct field for OpenAPI documentation
 type FieldInfo struct {
 	Name string
 	Type string

@@ -5,8 +5,4 @@ CREATE INDEX IF NOT EXISTS "idx_users_deleted_at" ON "users" ("deleted_at");
 CREATE INDEX IF NOT EXISTS "idx_users_updated" ON "users" ("updated_at");
 CREATE INDEX IF NOT EXISTS "idx_users_created" ON "users" ("created_at");
 CREATE UNIQUE INDEX IF NOT EXISTS "idx_users_email" ON "users" ("email");
-CREATE UNIQUE INDEX IF NOT EXISTS "idx_users_email" ON "users" ("email");
-CREATE INDEX IF NOT EXISTS "idx_users_created" ON "users" ("created_at");
-CREATE INDEX IF NOT EXISTS "idx_users_updated" ON "users" ("updated_at");
-CREATE INDEX IF NOT EXISTS "idx_users_deleted_at" ON "users" ("deleted_at");
 COMMIT;

@@ -1,9 +1,11 @@
+// Package migrations provides functionality for database schema migrations
 package migrations
 
 import (
 	"fmt"
-	"log"
+	"maps"
 	"reflect"
+	"slices"
 	"sort"
 	"strings"
 
@@ -12,6 +14,7 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+// GenerateMigration generates a slice of gormigrate.Migration based on the provided models
 func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
 	var migrationsList []*gormigrate.Migration
 
@@ -27,33 +30,15 @@ func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
 			ID: mv.Version,
 			Migrate: func(tx *gorm.DB) error {
 				if mv.Previous == nil {
-					if err := tx.Migrator().CreateTable(mv.Current); err != nil {
-						log.Printf("Warning: creating table: %v", err)
-					}
-					if err := createIndexesAndConstraints(tx, mv.Current); err != nil {
-						log.Printf("Warning: creating indexes: %v", err)
-					}
-				} else {
-					if err := handleColumnChanges(tx, mv.Current, reflect.TypeOf(mv.Previous).Elem(), reflect.TypeOf(mv.Current).Elem()); err != nil {
-						return err
-					}
-
-					if err := handleConstraints(tx, mv.Previous, mv.Current); err != nil {
-						return err
-					}
-
-					if err := handleIndexChanges(tx, mv.Previous, mv.Current); err != nil {
-						return err
-					}
+					return tx.Migrator().CreateTable(mv.Current)
 				}
-				return nil
+				return handleChanges(tx, mv.Previous, mv.Current)
 			},
 			Rollback: func(tx *gorm.DB) error {
-				// TODO: how to capture the rollback SQL?
 				if mv.Previous == nil {
 					return tx.Migrator().DropTable(mv.Current)
 				}
-				return handleRollback(tx, mv.Previous, mv.Current)
+				return handleChanges(tx, mv.Current, mv.Previous)
 			},
 		}
 		migrationsList = append(migrationsList, migration)
@@ -61,23 +46,43 @@ func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
 	return migrationsList
 }
 
-// Remove handleTableRename function
+func handleChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
+	if err := handleColumnChanges(tx, oldModel, newModel); err != nil {
+		return err
+	}
 
-func handleColumnChanges(tx *gorm.DB, model interface{}, oldType, newType reflect.Type) error {
+	if err := handleConstraints(tx, oldModel, newModel); err != nil {
+		return err
+	}
+
+	if err := handleIndexChanges(tx, oldModel, newModel); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func handleColumnChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	oldStmt := &gorm.Statement{DB: tx}
-	if err := oldStmt.Parse(reflect.New(oldType).Interface()); err != nil {
+	if err := oldStmt.Parse(oldModel); err != nil {
 		return fmt.Errorf("parsing old model: %w", err)
 	}
 
 	newStmt := &gorm.Statement{DB: tx}
-	if err := newStmt.Parse(model); err != nil {
+	if err := newStmt.Parse(newModel); err != nil {
 		return fmt.Errorf("parsing new model: %w", err)
 	}
 
+	sort.Slice(oldStmt.Schema.Fields, func(i, j int) bool {
+		return oldStmt.Schema.Fields[i].Name < oldStmt.Schema.Fields[j].Name
+	})
+	sort.Slice(newStmt.Schema.Fields, func(i, j int) bool {
+		return newStmt.Schema.Fields[i].Name < newStmt.Schema.Fields[j].Name
+	})
 	// Handle dropped columns first
 	for _, oldField := range oldStmt.Schema.Fields {
 		if newStmt.Schema.LookUpField(oldField.Name) == nil {
-			if err := tx.Migrator().DropColumn(model, oldField.DBName); err != nil {
+			if err := tx.Migrator().DropColumn(newModel, oldField.DBName); err != nil {
 				return fmt.Errorf("dropping column %s: %w", oldField.DBName, err)
 			}
 		}
@@ -88,11 +93,11 @@ func handleColumnChanges(tx *gorm.DB, model interface{}, oldType, newType reflec
 		oldField := oldStmt.Schema.LookUpField(newField.Name)
 
 		if oldField == nil {
-			if err := tx.Migrator().AddColumn(model, newField.DBName); err != nil {
+			if err := tx.Migrator().AddColumn(newModel, newField.DBName); err != nil {
 				return fmt.Errorf("adding column %s: %w", newField.DBName, err)
 			}
 		} else if columnNeedsAlter(oldField, newField) {
-			if err := tx.Migrator().AlterColumn(model, newField.DBName); err != nil {
+			if err := tx.Migrator().AlterColumn(newModel, newField.DBName); err != nil {
 				return fmt.Errorf("altering column %s: %w", newField.DBName, err)
 			}
 		}
@@ -111,6 +116,13 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 		return err
 	}
 
+	sort.Slice(oldStmt.Schema.Fields, func(i, j int) bool {
+		return oldStmt.Schema.Fields[i].Name < oldStmt.Schema.Fields[j].Name
+	})
+	sort.Slice(newStmt.Schema.Fields, func(i, j int) bool {
+		return newStmt.Schema.Fields[i].Name < newStmt.Schema.Fields[j].Name
+	})
+
 	// Handle foreign key constraints
 	for _, field := range newStmt.Schema.Fields {
 		if field.TagSettings["FOREIGNKEY"] != "" {
@@ -125,7 +137,7 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 			// Drop existing constraint if exists
 			if tx.Migrator().HasConstraint(newModel, constraintName) {
 				if err := tx.Migrator().DropConstraint(newModel, constraintName); err != nil {
-					log.Printf("Warning: dropping foreign key constraint %s: %v", constraintName, err)
+					return fmt.Errorf("dropping old foreign key constraint: %w", err)
 				}
 			}
 
@@ -160,7 +172,6 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 			if newField == nil {
 				if tx.Migrator().HasConstraint(oldModel, constraintName) {
 					if err := tx.Migrator().DropConstraint(oldModel, constraintName); err != nil {
-						log.Printf("Warning: dropping old foreign key constraint %s: %v", constraintName, err)
 						return err
 					}
 				}
@@ -174,7 +185,7 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 			constraintName := fmt.Sprintf("uk_%s_%s", newStmt.Schema.Table, field.DBName)
 			if !tx.Migrator().HasConstraint(newModel, constraintName) {
 				if err := tx.Migrator().CreateConstraint(newModel, constraintName); err != nil {
-					log.Printf("Warning: creating unique constraint %s: %v", constraintName, err)
+					return fmt.Errorf("creating unique constraint %s: %w", constraintName, err)
 				}
 			}
 		}
@@ -188,35 +199,9 @@ func handleConstraints(tx *gorm.DB, oldModel, newModel interface{}) error {
 			if !exists || !newField.Unique {
 				if tx.Migrator().HasConstraint(oldModel, constraintName) {
 					if err := tx.Migrator().DropConstraint(oldModel, constraintName); err != nil {
-						log.Printf("Warning: dropping unique constraint %s: %v", constraintName, err)
+						return fmt.Errorf("dropping unique constraint %s: %w", constraintName, err)
 					}
 				}
-			}
-		}
-	}
-
-	return nil
-}
-
-func createIndexesAndConstraints(tx *gorm.DB, model interface{}) error {
-	stmt := &gorm.Statement{DB: tx}
-	if err := stmt.Parse(model); err != nil {
-		return fmt.Errorf("parsing model: %w", err)
-	}
-
-	// Create indexes
-	for _, idx := range stmt.Schema.ParseIndexes() {
-		if err := tx.Migrator().CreateIndex(model, idx.Name); err != nil {
-			log.Printf("Warning: creating index %s: %v", idx.Name, err)
-		}
-	}
-
-	// 创建约束
-	for _, field := range stmt.Schema.Fields {
-		if field.Unique {
-			constraintName := fmt.Sprintf("uk_%s_%s", stmt.Schema.Table, field.DBName)
-			if err := tx.Migrator().CreateConstraint(model, constraintName); err != nil {
-				log.Printf("Warning: creating constraint %s: %v", constraintName, err)
 			}
 		}
 	}
@@ -257,22 +242,6 @@ func columnNeedsAlter(oldField, newField *schema.Field) bool {
 	return oldAutoUpdate != newAutoUpdate
 }
 
-// 辅助函数：从标签中获取值
-func getTagValue(tag reflect.StructTag, tagName, key string) (string, bool) {
-	gormTag := tag.Get(tagName)
-	if gormTag == "" {
-		return "", false
-	}
-
-	for _, option := range strings.Split(gormTag, ";") {
-		option = strings.TrimSpace(option)
-		if strings.HasPrefix(option, key+":") {
-			return strings.TrimPrefix(option, key+":"), true
-		}
-	}
-	return "", false
-}
-
 func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	oldStmt := &gorm.Statement{DB: tx}
 	newStmt := &gorm.Statement{DB: tx}
@@ -289,7 +258,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	newIndexes := newStmt.Schema.ParseIndexes()
 
 	// 检查索引重命名
-	for oldName, oldIdx := range oldIndexes {
+	for _, oldName := range slices.Sorted(maps.Keys(oldIndexes)) {
+		oldIdx := oldIndexes[oldName]
 		if !hasIndex(newIndexes, oldName) {
 			// 查找可能是重命名的索引
 			for newName, newIdx := range newIndexes {
@@ -307,10 +277,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 
 					if fieldsMatch {
 						if err := tx.Migrator().RenameIndex(newModel, oldName, newName); err != nil {
-							log.Printf("Warning: renaming index %s to %s: %v", oldName, newName, err)
+							return fmt.Errorf("renaming index %s to %s: %w", oldName, newName, err)
 						} else {
-							log.Printf("索引已重命名: %s -> %s", oldName, newName)
-							// 从旧索引列表中移除，避免后续被删除
 							delete(oldIndexes, oldName)
 							break
 						}
@@ -321,7 +289,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	}
 
 	// Drop removed indexes
-	for _, oldIdx := range oldIndexes {
+	for _, oldName := range slices.Sorted(maps.Keys(oldIndexes)) {
+		oldIdx := oldIndexes[oldName]
 		if !hasIndex(newIndexes, oldIdx.Name) {
 			if err := tx.Migrator().DropIndex(newModel, oldIdx.Name); err != nil {
 				return err
@@ -330,7 +299,8 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	}
 
 	// Create new indexes
-	for _, newIdx := range newIndexes {
+	for _, newName := range slices.Sorted(maps.Keys(newIndexes)) {
+		newIdx := newIndexes[newName]
 		if !hasIndex(oldIndexes, newIdx.Name) {
 			if err := tx.Migrator().CreateIndex(newModel, newIdx.Name); err != nil {
 				return err
@@ -341,46 +311,9 @@ func handleIndexChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	return nil
 }
 
-func handleRollback(tx *gorm.DB, oldModel, newModel interface{}) error {
-	oldType := reflect.TypeOf(oldModel).Elem()
-	newType := reflect.TypeOf(newModel).Elem()
-
-	// 处理约束回滚
-	if err := handleConstraints(tx, newModel, oldModel); err != nil {
-		return err
-	}
-
-	// Drop new columns
-	for i := 0; i < newType.NumField(); i++ {
-		newField := newType.Field(i)
-		if _, exists := oldType.FieldByName(newField.Name); !exists {
-			// 检查是否是重命名的列
-			isRenamed := false
-			if renameFrom, ok := getTagValue(newField.Tag, "gorm", "rename"); ok && renameFrom != "" {
-				// 对于重命名的列，需要恢复原名
-				if err := tx.Migrator().RenameColumn(newModel, newField.Name, renameFrom); err != nil {
-					return err
-				}
-				isRenamed = true
-			}
-
-			if !isRenamed {
-				if err := tx.Migrator().DropColumn(newModel, newField.Name); err != nil {
-					return err
-				}
-			}
-		}
-	}
-
-	// Restore old indexes
-	return handleIndexChanges(tx, newModel, oldModel)
-}
-
 func hasIndex(indexes map[string]schema.Index, name string) bool {
 	if _, ok := indexes[name]; ok {
 		return ok
 	}
 	return false
 }
-
-// Remove GenerateMigrationSQL function as it's no longer used

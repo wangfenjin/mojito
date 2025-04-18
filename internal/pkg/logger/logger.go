@@ -1,14 +1,15 @@
+// Package logger provides a centralized logging mechanism for the application.
 package logger
 
 import (
-	"context"
 	"log/slog"
 	"os"
 )
 
-var log *logger
+var log *Logger
 
-type logger struct {
+// Logger is a wrapper around slog.Logger
+type Logger struct {
 	slog.Logger
 }
 
@@ -20,7 +21,7 @@ func Initialize(env string) {
 		// JSON handler for production
 		handler = slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 			Level: slog.LevelInfo,
-			ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			ReplaceAttr: func(_ []string, a slog.Attr) slog.Attr {
 				if a.Key == slog.TimeKey {
 					return slog.Attr{
 						Key:   "timestamp",
@@ -43,30 +44,15 @@ func Initialize(env string) {
 		})
 	}
 
-	log = &logger{
+	log = &Logger{
 		Logger: *slog.New(handler),
 	}
 }
 
 // GetLogger returns the global logger instance
-func GetLogger() *logger {
+func GetLogger() *Logger {
 	if log == nil {
 		Initialize(os.Getenv("ENV"))
 	}
 	return log
-}
-
-// WithContext adds request context information to the logger
-func WithContext(ctx context.Context) *slog.Logger {
-	return GetLogger().With(
-		slog.String("request_id", GetRequestID(ctx)),
-	)
-}
-
-// GetRequestID extracts request ID from context
-func GetRequestID(ctx context.Context) string {
-	if id, ok := ctx.Value("request_id").(string); ok {
-		return id
-	}
-	return ""
 }

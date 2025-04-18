@@ -1,3 +1,4 @@
+// Package main is the entry point for the Mojito HTTP server
 package main
 
 import (
