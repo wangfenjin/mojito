@@ -23,9 +23,9 @@ func RegisterTestRoutes(h *gin.Engine) {
 type EmptyRequest struct{}
 
 func shutdownHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
-	os.Exit(0)
+	defer os.Exit(0)
 	return &MessageResponse{
-		Message: "Test data cleaned up",
+		Message: "server shutting down",
 	}, nil
 }
 

@@ -69,7 +69,7 @@ jobs:
           hurl --test --variable host=http://localhost:8080 tests/users.hurl
           hurl --test --variable host=http://localhost:8080 tests/login.hurl
           hurl --test --variable host=http://localhost:8080 tests/items.hurl
-          curl http://localhost:8080/api/v1/test/shutdown
+          curl http://localhost:8080/api/v1/test/shutdown || true
 
       - name: Merge coverage profiles
         run: |
