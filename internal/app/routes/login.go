@@ -32,7 +32,7 @@ func RegisterLoginRoutes(r *gin.Engine) {
 	}
 }
 
-// Request structs for login routes
+// LoginAccessTokenRequest structs
 type LoginAccessTokenRequest struct {
 	Username     string `form:"username" binding:"required"`
 	Password     string `form:"password" binding:"required"`
@@ -42,34 +42,40 @@ type LoginAccessTokenRequest struct {
 	ClientSecret string `form:"client_secret"`
 }
 
+// RecoverPasswordRequest structs
 type RecoverPasswordRequest struct {
 	Email string `uri:"email" binding:"required,email"`
 }
 
+// ResetPasswordRequest structs
 type ResetPasswordRequest struct {
 	Token    string `json:"token" binding:"required"`
 	Password string `json:"password" binding:"required,min=6"`
 }
 
+// RecoverPasswordHTMLContentRequest structs
 type RecoverPasswordHTMLContentRequest struct {
 	Email string `uri:"email" binding:"required,email"`
 }
 
-// Response structs
+// TokenResponse structs
 type TokenResponse struct {
 	AccessToken string `json:"access_token"`
 	TokenType   string `json:"token_type"`
 }
 
+// MessageResponse structs
 type MessageResponse struct {
 	Message string `json:"message"`
 }
 
+// TestTokenResponse structs
 type TestTokenResponse struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 }
 
+// HTMLContentResponse structs
 type HTMLContentResponse struct {
 	HTMLContent string `json:"html_content"`
 }
@@ -109,12 +115,13 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 	}, nil
 }
 
+// TestTokenRequest represents a request for generating test tokens
 type TestTokenRequest struct {
 	Token string `header:"Authorization" binding:"required"`
 }
 
 // Update handler signatures to use pointer returns
-func testTokenHandler(ctx context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
+func testTokenHandler(_ context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
 	// Get token from Authorization header
 	authHeader := req.Token
 	logger.GetLogger().Debug("authHeader", "token", authHeader)
@@ -151,14 +158,14 @@ func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (*M
 	}, nil
 }
 
-func resetPasswordHandler(ctx context.Context, req ResetPasswordRequest) (*MessageResponse, error) {
+func resetPasswordHandler(_ context.Context, _ ResetPasswordRequest) (*MessageResponse, error) {
 	// TODO: Implement password reset logic with token validation
 	return &MessageResponse{
 		Message: "password reset successful",
 	}, nil
 }
 
-func recoverPasswordHTMLContentHandler(ctx context.Context, req RecoverPasswordHTMLContentRequest) (*HTMLContentResponse, error) {
+func recoverPasswordHTMLContentHandler(_ context.Context, _ RecoverPasswordHTMLContentRequest) (*HTMLContentResponse, error) {
 	return &HTMLContentResponse{
 		HTMLContent: "<h1>Reset Your Password</h1><p>Click the link below to reset your password.</p>",
 	}, nil

@@ -45,7 +45,7 @@ func RegisterUsersRoutes(r *gin.Engine) {
 		middleware.WithHandler(registerUserHandler))
 }
 
-// CreateUserRequest
+// CreateUserRequest represents the request body for creating a user
 type CreateUserRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
@@ -55,7 +55,7 @@ type CreateUserRequest struct {
 	IsSuperuser bool   `json:"is_superuser"`
 }
 
-// UpdateUserRequest
+// UpdateUserRequest represents the request body for updating a user
 type UpdateUserRequest struct {
 	ID          string `uri:"id" binding:"required,uuid"`
 	Email       string `json:"email" binding:"omitempty,email"`
@@ -66,7 +66,7 @@ type UpdateUserRequest struct {
 	IsSuperuser bool   `json:"is_superuser"`
 }
 
-// RegisterUserRequest
+// RegisterUserRequest represents the request body for user registration
 type RegisterUserRequest struct {
 	Email       string `json:"email" binding:"required,email"`
 	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
@@ -74,17 +74,19 @@ type RegisterUserRequest struct {
 	FullName    string `json:"full_name" binding:"required"`
 }
 
-// Update the original UpdateUserMeRequest
+// UpdateUserMeRequest represents the request body for updating the current user
 type UpdateUserMeRequest struct {
 	Email       string `json:"email" binding:"omitempty,email"`
 	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
 	FullName    string `json:"full_name"`
 }
 
+// GetUserRequest represents the request parameters for getting a user
 type GetUserRequest struct {
 	ID string `uri:"id" binding:"required,uuid"`
 }
 
+// ListUsersRequest represents the request parameters for listing users
 type ListUsersRequest struct {
 	Skip  int `form:"skip" binding:"min=0" default:"0"`
 	Limit int `form:"limit" binding:"min=1,max=100" default:"10"`
@@ -111,6 +113,7 @@ type UsersResponse struct {
 	} `json:"meta"`
 }
 
+// UpdatePasswordRequest represents the request body for updating a password
 type UpdatePasswordRequest struct {
 	CurrentPassword string `json:"current_password" binding:"required"`
 	NewPassword     string `json:"new_password" binding:"required"`

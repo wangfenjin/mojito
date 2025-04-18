@@ -20,9 +20,10 @@ func RegisterTestRoutes(h *gin.Engine) {
 	}
 }
 
+// EmptyRequest represents an empty request
 type EmptyRequest struct{}
 
-func shutdownHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
+func shutdownHandler(_ context.Context, _ EmptyRequest) (*MessageResponse, error) {
 	defer os.Exit(0)
 	return &MessageResponse{
 		Message: "server shutting down",

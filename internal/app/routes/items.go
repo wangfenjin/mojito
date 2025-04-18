@@ -33,29 +33,31 @@ func RegisterItemsRoutes(r *gin.Engine) {
 	}
 }
 
-// Request structs for items routes
+// CreateItemRequest represents the request body for creating an item
 type CreateItemRequest struct {
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
 
+// UpdateItemRequest represents the request body for updating an item
 type UpdateItemRequest struct {
 	ID          string `uri:"id" binding:"required,uuid"`
 	Title       string `json:"title" binding:"required"`
 	Description string `json:"description" binding:"required"`
 }
 
+// GetItemRequest represents the request parameters for getting an item
 type GetItemRequest struct {
 	ID string `uri:"id" binding:"required,uuid"`
 }
 
+// ListItemsRequest represents the request parameters for listing items
 type ListItemsRequest struct {
 	Skip  int `form:"skip" binding:"min=0" default:"0"`
 	Limit int `form:"limit" binding:"min=1,max=100" default:"10"`
 }
 
-// Item handlers
-// Add response structs
+// ItemResponse represents a single item in the response
 type ItemResponse struct {
 	ID          uuid.UUID `json:"id"`
 	Title       string    `json:"title"`
@@ -64,6 +66,7 @@ type ItemResponse struct {
 	UpdatedAt   time.Time `json:"updated_at"`
 }
 
+// ItemsResponse represents a collection of items in the response
 type ItemsResponse struct {
 	Items []ItemResponse `json:"items"`
 	Meta  struct {

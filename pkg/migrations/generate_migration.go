@@ -1,3 +1,4 @@
+// Package migrations provides functionality for database schema migrations
 package migrations
 
 import (
@@ -12,6 +13,7 @@ import (
 	"gorm.io/gorm/schema"
 )
 
+// GenerateMigration generates a slice of gormigrate.Migration based on the provided models
 func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
 	var migrationsList []*gormigrate.Migration
 
@@ -34,7 +36,7 @@ func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
 						log.Printf("Warning: creating indexes: %v", err)
 					}
 				} else {
-					if err := handleColumnChanges(tx, mv.Current, reflect.TypeOf(mv.Previous).Elem(), reflect.TypeOf(mv.Current).Elem()); err != nil {
+					if err := handleColumnChanges(tx, mv.Previous, mv.Current); err != nil {
 						return err
 					}
 
@@ -61,23 +63,21 @@ func GenerateMigration(models []ModelVersion) []*gormigrate.Migration {
 	return migrationsList
 }
 
-// Remove handleTableRename function
-
-func handleColumnChanges(tx *gorm.DB, model interface{}, oldType, newType reflect.Type) error {
+func handleColumnChanges(tx *gorm.DB, oldModel, newModel interface{}) error {
 	oldStmt := &gorm.Statement{DB: tx}
-	if err := oldStmt.Parse(reflect.New(oldType).Interface()); err != nil {
+	if err := oldStmt.Parse(oldModel); err != nil {
 		return fmt.Errorf("parsing old model: %w", err)
 	}
 
 	newStmt := &gorm.Statement{DB: tx}
-	if err := newStmt.Parse(model); err != nil {
+	if err := newStmt.Parse(newModel); err != nil {
 		return fmt.Errorf("parsing new model: %w", err)
 	}
 
 	// Handle dropped columns first
 	for _, oldField := range oldStmt.Schema.Fields {
 		if newStmt.Schema.LookUpField(oldField.Name) == nil {
-			if err := tx.Migrator().DropColumn(model, oldField.DBName); err != nil {
+			if err := tx.Migrator().DropColumn(newModel, oldField.DBName); err != nil {
 				return fmt.Errorf("dropping column %s: %w", oldField.DBName, err)
 			}
 		}
@@ -88,11 +88,11 @@ func handleColumnChanges(tx *gorm.DB, model interface{}, oldType, newType reflec
 		oldField := oldStmt.Schema.LookUpField(newField.Name)
 
 		if oldField == nil {
-			if err := tx.Migrator().AddColumn(model, newField.DBName); err != nil {
+			if err := tx.Migrator().AddColumn(newModel, newField.DBName); err != nil {
 				return fmt.Errorf("adding column %s: %w", newField.DBName, err)
 			}
 		} else if columnNeedsAlter(oldField, newField) {
-			if err := tx.Migrator().AlterColumn(model, newField.DBName); err != nil {
+			if err := tx.Migrator().AlterColumn(newModel, newField.DBName); err != nil {
 				return fmt.Errorf("altering column %s: %w", newField.DBName, err)
 			}
 		}
@@ -382,5 +382,3 @@ func hasIndex(indexes map[string]schema.Index, name string) bool {
 	}
 	return false
 }
-
-// Remove GenerateMigrationSQL function as it's no longer used

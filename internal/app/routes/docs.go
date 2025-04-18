@@ -1,3 +1,4 @@
+// Package routes defines the API routes and handlers for the application
 package routes
 
 import (

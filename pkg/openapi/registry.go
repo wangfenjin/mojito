@@ -25,12 +25,13 @@ type handlerInfo struct {
 // Global registry to store route information
 var handlerRegistry = make(map[string]handlerInfo)
 
+// Registered checks if a handler is already registered for the given method and pattern
 func Registered(method, pattern string) bool {
 	_, ok := handlerRegistry[method+":"+pattern]
 	return ok
 }
 
-// RegisterRoute adds route information to the registry
+// RegisterHandler adds route information to the registry
 func RegisterHandler(method, pattern, handlerName string, req, resp reflect.Type, middlewares ...string) {
 	// Generate tag from path
 	re := regexp.MustCompile(`/api/v\d+/([^/]+)`)

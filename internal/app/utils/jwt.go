@@ -1,3 +1,4 @@
+// Package utils provides utility functions for the application
 package utils
 
 import (
@@ -8,12 +9,14 @@ import (
 
 var jwtSecret = []byte("your-secret-key") // In production, this should be in config
 
+// Claims is a custom JWT claims
 type Claims struct {
 	UserID string `json:"user_id"`
 	Email  string `json:"email"`
 	jwt.RegisteredClaims
 }
 
+// GenerateToken generates a JWT token
 func GenerateToken(userID, email string) (string, error) {
 	claims := Claims{
 		UserID: userID,
@@ -28,8 +31,9 @@ func GenerateToken(userID, email string) (string, error) {
 	return token.SignedString(jwtSecret)
 }
 
+// ValidateToken validates a JWT token
 func ValidateToken(tokenString string) (*Claims, error) {
-	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(token *jwt.Token) (interface{}, error) {
+	token, err := jwt.ParseWithClaims(tokenString, &Claims{}, func(_ *jwt.Token) (interface{}, error) {
 		return jwtSecret, nil
 	})
 
