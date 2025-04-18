@@ -3,6 +3,7 @@ package routes
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/gin-gonic/gin"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
@@ -15,10 +16,18 @@ func RegisterTestRoutes(h *gin.Engine) {
 	{
 		testGroup.DELETE("/cleanup",
 			middleware.WithHandler(cleanupHandler))
+		testGroup.GET("/shutdown", middleware.WithHandler(shutdownHandler))
 	}
 }
 
 type EmptyRequest struct{}
+
+func shutdownHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
+	os.Exit(0)
+	return &MessageResponse{
+		Message: "Test data cleaned up",
+	}, nil
+}
 
 func cleanupHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
 	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
