@@ -58,8 +58,7 @@ jobs:
       # https://go.dev/blog/integration-test-coverage
       - name: Build and start server with coverage
         run: |
-          go build -cover -o mojito ./cmd/mojito
-          go test -c -race -coverprofile=coverage.txt -covermode=atomic ./...
+          go build -race -cover -o mojito ./cmd/mojito
           mkdir -p covdatafiles
           GOCOVERDIR=covdatafiles ./mojito &
           sleep 5  # Give the server time to start
@@ -75,14 +74,11 @@ jobs:
         run: |
           go tool covdata percent -i=covdatafiles
           go tool covdata textfmt -i=covdatafiles -o=integration.coverage.txt
-          go get github.com/wadey/gocovmerge
-          go install github.com/wadey/gocovmerge
-          gocovmerge coverage.txt integration.coverage.txt > all.coverage.txt
 
       - name: Upload combined coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          file: ./all.coverage.txt
+          file: ./integration.coverage.txt
           fail_ci_if_error: false
 
   docker:
