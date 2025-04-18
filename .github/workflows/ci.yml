@@ -76,10 +76,12 @@ jobs:
           go tool covdata textfmt -i=covdatafiles -o=integration.coverage.txt
 
       - name: Upload combined coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v5
         with:
           file: ./integration.coverage.txt
           fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+          slug: wangfenjin/mojito
 
   docker:
     name: Build Docker Image
