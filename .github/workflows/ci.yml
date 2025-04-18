@@ -55,10 +55,10 @@ jobs:
       - name: Create test config
         run: mv ./config/config.postgres.yaml ./config/config.yaml
 
-      # https://go.dev/blog/integration-test-coverage
+      # https://go.dev/doc/build-cover
       - name: Build and start server with coverage
         run: |
-          go build -race -cover -o mojito ./cmd/mojito
+          go build -cover -o mojito ./cmd/mojito
           mkdir -p covdatafiles
           GOCOVERDIR=covdatafiles ./mojito &
           sleep 5  # Give the server time to start
@@ -68,14 +68,15 @@ jobs:
           hurl --test --variable host=http://localhost:8080 tests/users.hurl
           hurl --test --variable host=http://localhost:8080 tests/login.hurl
           hurl --test --variable host=http://localhost:8080 tests/items.hurl
+          hurl --test --variable host=http://localhost:8080 tests/utils.hurl
           curl http://localhost:8080/api/v1/test/shutdown || true
 
-      - name: Merge coverage profiles
+      - name: post process coverage profiles
         run: |
           go tool covdata percent -i=covdatafiles
           go tool covdata textfmt -i=covdatafiles -o=integration.coverage.txt
 
-      - name: Upload combined coverage to Codecov
+      - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5
         with:
           file: ./integration.coverage.txt

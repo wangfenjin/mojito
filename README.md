@@ -2,6 +2,7 @@
 
 [![Go Report Card](https://goreportcard.com/badge/github.com/wangfenjin/mojito)](https://goreportcard.com/report/github.com/wangfenjin/mojito)
 [![License](https://img.shields.io/github/license/wangfenjin/mojito)](https://github.com/wangfenjin/mojito/blob/main/LICENSE)
+[![codecov](https://codecov.io/gh/wangfenjin/mojito/graph/badge.svg?token=Id3axA9TgY)](https://codecov.io/gh/wangfenjin/mojito)
 
 Mojito is a production-ready HTTP server template in Go, designed to be compatible with the [FastAPI Full Stack Template](https://github.com/fastapi/full-stack-fastapi-template). It provides a robust foundation for building scalable web applications.
 
