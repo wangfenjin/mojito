@@ -5,8 +5,4 @@ CREATE INDEX IF NOT EXISTS "idx_items_deleted_at" ON "items" ("deleted_at");
 CREATE INDEX IF NOT EXISTS "idx_items_updated" ON "items" ("updated_at");
 CREATE INDEX IF NOT EXISTS "idx_items_created" ON "items" ("created_at");
 CREATE INDEX IF NOT EXISTS "idx_items_owner" ON "items" ("owner_id");
-CREATE INDEX IF NOT EXISTS "idx_items_created" ON "items" ("created_at");
-CREATE INDEX IF NOT EXISTS "idx_items_deleted_at" ON "items" ("deleted_at");
-CREATE INDEX IF NOT EXISTS "idx_items_owner" ON "items" ("owner_id");
-CREATE INDEX IF NOT EXISTS "idx_items_updated" ON "items" ("updated_at");
 COMMIT;
