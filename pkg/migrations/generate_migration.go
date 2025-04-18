@@ -206,8 +206,10 @@ func createIndexesAndConstraints(tx *gorm.DB, model interface{}) error {
 		return fmt.Errorf("parsing model: %w", err)
 	}
 
+	indexes := stmt.Schema.ParseIndexes()
 	// Create indexes
-	for _, idx := range stmt.Schema.ParseIndexes() {
+	for _, idxName := range slices.Sorted(maps.Keys(indexes)) {
+		idx := indexes[idxName]
 		if err := tx.Migrator().CreateIndex(model, idx.Name); err != nil {
 			log.Printf("Warning: creating index %s: %v", idx.Name, err)
 		}
