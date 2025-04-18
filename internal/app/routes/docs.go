@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/wangfenjin/mojito/internal/pkg/logger"
 	"github.com/wangfenjin/mojito/pkg/openapi"
 )
 
@@ -22,7 +23,8 @@ func RegisterDocsRoutes(r *gin.Engine) {
 			// Generate OpenAPI spec
 			err := openapi.GenerateSwaggerJSON("./api/openapi.json")
 			if err != nil {
-				ctx.AbortWithError(http.StatusInternalServerError, err).SetType(gin.ErrorTypePrivate)
+				logger.GetLogger().Error("Failed to generate OpenAPI spec", "error", err)
+				ctx.AbortWithStatus(http.StatusInternalServerError)
 			}
 
 			// HTML for Swagger UI using CDN

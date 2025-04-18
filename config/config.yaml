@@ -15,6 +15,7 @@ database:
   name: mojito
   sslMode: disable
   timeZone: UTC
+  sqlitePath: ./mojito.db
 
 auth:
   secretKey: supersecretkey

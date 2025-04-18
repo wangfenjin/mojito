@@ -232,7 +232,7 @@ func createOperation(
 			}
 
 			// Handle JSON data
-			if _, hasJson := fieldTags[TypeJson]; hasJson {
+			if _, hasJSON := fieldTags[TypeJSON]; hasJSON {
 				operation["requestBody"] = map[string]interface{}{
 					"content": map[string]interface{}{
 						"application/json": map[string]interface{}{
@@ -255,8 +255,8 @@ func createOperation(
 }
 
 const (
-	TypeJson   = "json"
-	TypeUri    = "uri"
+	TypeJSON   = "json"
+	TypeURI    = "uri"
 	TypeForm   = "form"
 	TypeHeader = "header"
 	TypeQuery  = "query"
@@ -290,15 +290,15 @@ func getTypeFieldTags(t reflect.Type) map[string][]FieldInfo {
 		if jsonTag, ok := field.Tag.Lookup("json"); ok {
 			jsonField := FieldInfo{
 				Name: jsonTag,
-				Type: TypeJson,
+				Type: TypeJSON,
 			}
-			fieldsInfo[TypeJson] = append(fieldsInfo[TypeJson], jsonField)
+			fieldsInfo[TypeJSON] = append(fieldsInfo[TypeJSON], jsonField)
 		} else if uriTag, ok := field.Tag.Lookup("uri"); ok {
 			uriField := FieldInfo{
 				Name: uriTag,
-				Type: TypeUri,
+				Type: TypeURI,
 			}
-			fieldsInfo[TypeUri] = append(fieldsInfo[TypeUri], uriField)
+			fieldsInfo[TypeURI] = append(fieldsInfo[TypeURI], uriField)
 		} else if formTag, ok := field.Tag.Lookup("form"); ok {
 			formField := FieldInfo{
 				Name: formTag,
@@ -532,7 +532,6 @@ func getTypeSchema(t reflect.Type) map[string]interface{} {
 // getStructProperties extracts properties from a struct type
 func getStructProperties(t reflect.Type) map[string]interface{} {
 	properties := make(map[string]interface{})
-	requiredFields := []string{}
 
 	// Handle nil type
 	if t == nil {
@@ -567,10 +566,11 @@ func getStructProperties(t reflect.Type) map[string]interface{} {
 		name := parts[0]
 
 		// Check if the field is required
-		bindingTag := field.Tag.Get("binding")
-		if bindingTag != "" && strings.Contains(bindingTag, "required") {
-			requiredFields = append(requiredFields, name)
-		}
+		// requiredFields := []string{}
+		// bindingTag := field.Tag.Get("binding")
+		// if bindingTag != "" && strings.Contains(bindingTag, "required") {
+		// 	requiredFields = append(requiredFields, name)
+		// }
 
 		properties[name] = getTypeSchema(field.Type)
 	}

@@ -254,11 +254,7 @@ func columnNeedsAlter(oldField, newField *schema.Field) bool {
 
 	oldAutoUpdate := oldField.AutoUpdateTime > 0
 	newAutoUpdate := newField.AutoUpdateTime > 0
-	if oldAutoUpdate != newAutoUpdate {
-		return true
-	}
-
-	return false
+	return oldAutoUpdate != newAutoUpdate
 }
 
 // 辅助函数：从标签中获取值
