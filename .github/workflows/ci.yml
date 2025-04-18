@@ -66,9 +66,9 @@ jobs:
 
       - name: Run API tests with Hurl
         run: |
-          hurl --variable host=http://localhost:8080 tests/users.hurl
-          hurl --variable host=http://localhost:8080 tests/login.hurl
-          hurl --variable host=http://localhost:8080 tests/items.hurl
+          hurl --test --variable host=http://localhost:8080 tests/users.hurl
+          hurl --test --variable host=http://localhost:8080 tests/login.hurl
+          hurl --test --variable host=http://localhost:8080 tests/items.hurl
           curl http://localhost:8080/api/v1/test/shutdown
 
       - name: Merge coverage profiles
