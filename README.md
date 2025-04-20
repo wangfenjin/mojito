@@ -8,7 +8,6 @@ Mojito is a production-ready HTTP server template in Go, designed to be compatib
 
 ## Features
 
-- 📦 Standard Go project layout following [golang-standards](https://github.com/golang-standards/project-layout)
 - 🔧 Flexible configuration management with [Viper](https://github.com/spf13/viper)
 - 💾 Database operations using [GORM](https://github.com/go-gorm/gorm)
 - 🔄 Live reload during development with [Air](https://github.com/air-verse/air)
