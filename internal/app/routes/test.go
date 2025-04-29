@@ -5,19 +5,17 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 )
 
 // RegisterTestRoutes registers test-related routes
-func RegisterTestRoutes(h *gin.Engine) {
-	testGroup := h.Group("/api/v1/test")
-	{
-		testGroup.DELETE("/cleanup",
-			middleware.WithHandler(cleanupHandler))
-		testGroup.GET("/shutdown", middleware.WithHandler(shutdownHandler))
-	}
+func RegisterTestRoutes(r chi.Router) {
+	r.Route("/api/v1/test", func(r chi.Router) {
+		r.Delete("/cleanup", middleware.WithHandler(cleanupHandler))
+		r.Get("/shutdown", middleware.WithHandler(shutdownHandler))
+	})
 }
 
 // EmptyRequest represents an empty request

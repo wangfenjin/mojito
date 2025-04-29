@@ -1,9 +1,9 @@
 package routes
 
-import "github.com/gin-gonic/gin"
+import "github.com/go-chi/chi/v5"
 
 // RegisterRoutes registers all application routes
-func RegisterRoutes(r *gin.Engine) {
+func RegisterRoutes(r chi.Router) {
 	RegisterUtilRoutes(r)
 	RegisterLoginRoutes(r)
 	RegisterUsersRoutes(r)

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
@@ -13,24 +13,17 @@ import (
 )
 
 // RegisterItemsRoutes registers all item related routes
-func RegisterItemsRoutes(r *gin.Engine) {
-	itemsGroup := r.Group("/api/v1/items", middleware.RequireAuth())
-	{
-		itemsGroup.POST("/",
-			middleware.WithHandler(createItemHandler))
+func RegisterItemsRoutes(r chi.Router) {
+	r.Route("/api/v1/items", func(r chi.Router) {
+		// Apply auth middleware to all item routes
+		r.Use(middleware.RequireAuth())
 
-		itemsGroup.GET("/:id",
-			middleware.WithHandler(getItemHandler))
-
-		itemsGroup.PUT("/:id",
-			middleware.WithHandler(updateItemHandler))
-
-		itemsGroup.DELETE("/:id",
-			middleware.WithHandler(deleteItemHandler))
-
-		itemsGroup.GET("/",
-			middleware.WithHandler(listItemsHandler))
-	}
+		r.Post("/", middleware.WithHandler(createItemHandler))
+		r.Get("/{id}", middleware.WithHandler(getItemHandler))
+		r.Put("/{id}", middleware.WithHandler(updateItemHandler))
+		r.Delete("/{id}", middleware.WithHandler(deleteItemHandler))
+		r.Get("/", middleware.WithHandler(listItemsHandler))
+	})
 }
 
 // CreateItemRequest represents the request body for creating an item
@@ -53,8 +46,8 @@ type GetItemRequest struct {
 
 // ListItemsRequest represents the request parameters for listing items
 type ListItemsRequest struct {
-	Skip  int `form:"skip" binding:"min=0" default:"0"`
-	Limit int `form:"limit" binding:"min=1,max=100" default:"10"`
+	Skip  int `query:"skip" binding:"min=0" default:"0"`
+	Limit int `query:"limit" binding:"min=1,max=100" default:"10"`
 }
 
 // ItemResponse represents a single item in the response

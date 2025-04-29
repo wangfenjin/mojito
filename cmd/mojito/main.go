@@ -2,14 +2,17 @@
 package main
 
 import (
+	"context"
 	"log"
+	"net/http"
 	"os"
+	"strconv"
 
-	"github.com/gin-contrib/cors"
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 	"github.com/wangfenjin/mojito/internal/app/config"
 	"github.com/wangfenjin/mojito/internal/app/database"
-	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/routes"
 	"github.com/wangfenjin/mojito/internal/pkg/logger"
@@ -44,16 +47,29 @@ func main() {
 	userRepo := repository.NewUserRepository(db)
 	itemRepo := repository.NewItemRepository(db)
 
-	// Create Hertz server
-	r := gin.Default()
-	r.Use(cors.Default())
-	r.Use(middleware.LoggerMiddleware())
+	// Create Chi router
+	r := chi.NewRouter()
+
+	// Add middleware
+	r.Use(middleware.Logger)
+	r.Use(middleware.Recoverer)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   cfg.Server.AllowedOrigins,
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		ExposedHeaders:   []string{"Link"},
+		AllowCredentials: true,
+		MaxAge:           300,
+	}))
 
 	// Add middleware to inject repositories into context
-	r.Use(func(c *gin.Context) {
-		c.Set("userRepository", userRepo)
-		c.Set("itemRepository", itemRepo)
-		c.Next()
+	r.Use(func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ctx := r.Context()
+			ctx = context.WithValue(ctx, "userRepository", userRepo)
+			ctx = context.WithValue(ctx, "itemRepository", itemRepo)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
 	})
 
 	// Set up API routes
@@ -63,7 +79,9 @@ func main() {
 	}
 
 	// Start the server
-	if err := r.Run(); err != nil {
+	port := strconv.Itoa(cfg.Server.Port)
+	logger.GetLogger().Info("Starting server on :" + port)
+	if err := http.ListenAndServe(":"+port, r); err != nil {
 		panic(err)
 	}
 }
