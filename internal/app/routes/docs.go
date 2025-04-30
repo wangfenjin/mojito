@@ -18,7 +18,7 @@ func RegisterDocsRoutes(r chi.Router) {
 		})
 
 		// Serve Swagger UI using CDN
-		r.Get("/swagger/*", func(w http.ResponseWriter, r *http.Request) {
+		r.Get("/swagger/*", func(w http.ResponseWriter, _ *http.Request) {
 			// Generate OpenAPI spec
 			err := openapi.GenerateSwaggerJSON("./api/openapi.json")
 			if err != nil {

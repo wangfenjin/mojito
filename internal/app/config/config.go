@@ -28,15 +28,13 @@ type ServerConfig struct {
 
 // DatabaseConfig holds all database-related configuration
 type DatabaseConfig struct {
-	Type       string // "postgres" or "sqlite"
-	Host       string
-	Port       int
-	User       string
-	Password   string
-	Name       string
-	SSLMode    string
-	TimeZone   string
-	SQLitePath string // Path for SQLite database file
+	Host     string
+	Port     int
+	User     string
+	Password string
+	Name     string
+	SSLMode  string
+	TimeZone string
 }
 
 // AuthConfig holds all authentication-related configuration

@@ -1,0 +1,22 @@
+version: "2"
+servers:
+  - engine: postgresql
+    uri: "postgres://postgres:postgres@localhost:5432/mojito?sslmode=disable"
+sql:
+  - schema: schema.sql
+    queries: "*_query.sql"
+    engine: postgresql
+    database:
+      managed: true
+    gen:
+      go:
+        package: "gen"
+        out: "gen"
+        sql_package: "pgx/v5"
+        overrides:
+          - db_type: "uuid"
+            go_type:
+              import: "github.com/google/uuid"
+              type: "UUID"
+    rules:
+      - sqlc/db-prepare

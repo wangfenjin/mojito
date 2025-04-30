@@ -7,9 +7,11 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/repository"
+	"github.com/wangfenjin/mojito/internal/app/models/gen"
+	"github.com/wangfenjin/mojito/internal/app/utils"
 )
 
 // RegisterItemsRoutes registers all item related routes
@@ -46,8 +48,8 @@ type GetItemRequest struct {
 
 // ListItemsRequest represents the request parameters for listing items
 type ListItemsRequest struct {
-	Skip  int `query:"skip" binding:"min=0" default:"0"`
-	Limit int `query:"limit" binding:"min=1,max=100" default:"10"`
+	Skip  int64 `query:"skip" binding:"min=0" default:"0"`
+	Limit int64 `query:"limit" binding:"min=1,max=100" default:"10"`
 }
 
 // ItemResponse represents a single item in the response
@@ -63,47 +65,45 @@ type ItemResponse struct {
 type ItemsResponse struct {
 	Items []ItemResponse `json:"items"`
 	Meta  struct {
-		Skip  int `json:"skip"`
-		Limit int `json:"limit"`
+		Skip  int64 `json:"skip"`
+		Limit int64 `json:"limit"`
 	} `json:"meta"`
 }
 
 // Update handlers to use the new response types
 func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemResponse, error) {
-	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	// Get user_id from context instead of claims
-	userID := ctx.Value("user_id").(string)
-	id, err := uuid.Parse(userID)
+	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid owner ID")
 	}
 
-	item := &models.Item{
+	item, err := db.CreateItem(ctx, gen.CreateItemParams{
 		Title:       req.Title,
-		Description: req.Description,
-		OwnerID:     id,
-	}
-
-	if err := itemRepo.Create(ctx, item); err != nil {
+		Description: pgtype.Text{String: req.Description, Valid: true},
+		OwnerID:     ownerID,
+		ID:          uuid.New(),
+	})
+	if err != nil {
 		return nil, fmt.Errorf("error creating item: %w", err)
 	}
 
 	return &ItemResponse{
 		ID:          item.ID,
 		Title:       item.Title,
-		Description: item.Description,
-		CreatedAt:   item.CreatedAt,
-		UpdatedAt:   item.UpdatedAt,
+		Description: item.Description.String,
+		CreatedAt:   item.CreatedAt.Time,
+		UpdatedAt:   item.UpdatedAt.Time,
 	}, nil
 }
 
 func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, error) {
-	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	// Get user_id from context
-	userID := ctx.Value("user_id").(string)
-	ownerID, err := uuid.Parse(userID)
+	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid owner ID")
 	}
@@ -113,48 +113,49 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 		return nil, middleware.NewBadRequestError("invalid item ID format")
 	}
 
-	// Check if item exists and belongs to the user
-	item, err := itemRepo.GetByIDAndOwner(ctx, id, ownerID)
+	item, err := db.GetItemByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
-	if item == nil {
+	if item.OwnerID != ownerID && !claims.IsSuperUser {
 		return nil, middleware.NewBadRequestError("item not found or access denied")
 	}
 
 	return &ItemResponse{
 		ID:          item.ID,
 		Title:       item.Title,
-		Description: item.Description,
-		CreatedAt:   item.CreatedAt,
-		UpdatedAt:   item.UpdatedAt,
+		Description: item.Description.String,
+		CreatedAt:   item.CreatedAt.Time,
+		UpdatedAt:   item.UpdatedAt.Time,
 	}, nil
 }
 
 func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemResponse, error) {
-	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
+	ownerID, err := uuid.Parse(claims.UserID)
+	if err != nil {
+		return nil, middleware.NewBadRequestError("invalid owner ID")
+	}
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid item ID format")
 	}
 
-	item, err := itemRepo.GetByID(ctx, id)
+	item, err := db.GetItemByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
-	if item == nil {
-		return nil, middleware.NewBadRequestError("item not found")
+	if item.OwnerID != ownerID && !claims.IsSuperUser {
+		return nil, middleware.NewBadRequestError("item not found or access denied")
 	}
 
-	if req.Title != "" {
-		item.Title = req.Title
-	}
-	if req.Description != "" {
-		item.Description = req.Description
-	}
-
-	err = itemRepo.Update(ctx, item)
+	item, err = db.UpdateItem(ctx, gen.UpdateItemParams{
+		Title:       req.Title,
+		Description: pgtype.Text{String: req.Description, Valid: true},
+		ID:          id,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error updating item: %w", err)
 	}
@@ -162,18 +163,18 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 	return &ItemResponse{
 		ID:          item.ID,
 		Title:       item.Title,
-		Description: item.Description,
-		CreatedAt:   item.CreatedAt,
-		UpdatedAt:   item.UpdatedAt,
+		Description: item.Description.String,
+		CreatedAt:   item.CreatedAt.Time,
+		UpdatedAt:   item.UpdatedAt.Time,
 	}, nil
 }
 
 func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageResponse, error) {
-	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
 	// Get user_id from context
-	userID := ctx.Value("user_id").(string)
-	ownerID, err := uuid.Parse(userID)
+	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid owner ID")
 	}
@@ -184,15 +185,15 @@ func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageRespons
 	}
 
 	// Check if item exists and belongs to the user
-	item, err := itemRepo.GetByIDAndOwner(ctx, id, ownerID)
+	item, err := db.GetItemByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
-	if item == nil {
+	if item.OwnerID != ownerID && !claims.IsSuperUser {
 		return nil, middleware.NewBadRequestError("item not found or access denied")
 	}
 
-	err = itemRepo.Delete(ctx, id, ownerID)
+	err = db.DeleteItem(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting item: %w", err)
 	}
@@ -203,16 +204,20 @@ func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageRespons
 }
 
 func listItemsHandler(ctx context.Context, req ListItemsRequest) (*ItemsResponse, error) {
-	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
 	// Get user_id from context
-	userID := ctx.Value("user_id").(string)
-	ownerID, err := uuid.Parse(userID)
+	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid owner ID")
 	}
 
-	items, err := itemRepo.List(ctx, ownerID, req.Skip, req.Limit)
+	items, err := db.ListItemsByOwner(ctx, gen.ListItemsByOwnerParams{
+		OwnerID: ownerID,
+		Limit:   req.Limit,
+		Offset:  req.Skip,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing items: %w", err)
 	}
@@ -222,17 +227,17 @@ func listItemsHandler(ctx context.Context, req ListItemsRequest) (*ItemsResponse
 		itemList[i] = ItemResponse{
 			ID:          item.ID,
 			Title:       item.Title,
-			Description: item.Description,
-			CreatedAt:   item.CreatedAt,
-			UpdatedAt:   item.UpdatedAt,
+			Description: item.Description.String,
+			CreatedAt:   item.CreatedAt.Time,
+			UpdatedAt:   item.UpdatedAt.Time,
 		}
 	}
 
 	return &ItemsResponse{
 		Items: itemList,
 		Meta: struct {
-			Skip  int `json:"skip"`
-			Limit int `json:"limit"`
+			Skip  int64 `json:"skip"`
+			Limit int64 `json:"limit"`
 		}{
 			Skip:  req.Skip,
 			Limit: req.Limit,
