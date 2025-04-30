@@ -24,11 +24,11 @@ OFFSET $2;
 
 -- name: UpdateUser :one
 UPDATE public."user" SET
-    email = COALESCE($2, email),
-    full_name = COALESCE($3, full_name),
-    is_active = COALESCE($4, is_active),
-    is_superuser = COALESCE($5, is_superuser),
-    hashed_password = COALESCE($6, hashed_password)
+    email = COALESCE(sqlc.narg(email), email),
+    full_name = COALESCE(sqlc.narg(full_name), full_name),
+    is_active = COALESCE(sqlc.narg(is_active), is_active),
+    is_superuser = COALESCE(sqlc.narg(is_superuser), is_superuser),
+    hashed_password = COALESCE(sqlc.narg(hashed_password), hashed_password)
 WHERE id = $1
 RETURNING *;
 

@@ -178,11 +178,11 @@ RETURNING id, email, hashed_password, is_active, is_superuser, full_name, create
 
 type UpdateUserParams struct {
 	ID             uuid.UUID
-	Email          string
+	Email          pgtype.Text
 	FullName       pgtype.Text
-	IsActive       bool
-	IsSuperuser    bool
-	HashedPassword string
+	IsActive       pgtype.Bool
+	IsSuperuser    pgtype.Bool
+	HashedPassword pgtype.Text
 }
 
 func (q *Queries) UpdateUser(ctx context.Context, arg UpdateUserParams) (User, error) {

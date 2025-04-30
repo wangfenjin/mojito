@@ -45,12 +45,11 @@ type CreateUserRequest struct {
 
 // UpdateUserRequest represents the request body for updating a user
 type UpdateUserRequest struct {
-	ID          string `uri:"id" binding:"required,uuid"`
-	Email       string `json:"email" binding:"omitempty,email"`
-	Password    string `json:"password"`
-	FullName    string `json:"full_name"`
-	IsActive    bool   `json:"is_active"`
-	IsSuperuser bool   `json:"is_superuser"`
+	ID          string  `uri:"id" binding:"required,uuid"`
+	Email       *string `json:"email" binding:"omitempty,email"`
+	FullName    *string `json:"full_name" binding:"omitempty"`
+	IsActive    *bool   `json:"is_active" binding:"omitempty"`
+	IsSuperuser *bool   `json:"is_superuser" binding:"omitempty"`
 }
 
 // RegisterUserRequest represents the request body for user registration
@@ -150,11 +149,13 @@ func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*Mes
 	// Update with new password hash
 	user, err = db.UpdateUser(ctx, gen.UpdateUserParams{
 		ID:             user.ID,
-		HashedPassword: hashedNewPassword,
+		HashedPassword: pgtype.Text{String: hashedNewPassword, Valid: true},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("error updating password: %w", err)
 	}
+
+	// TODO: invalid token after password update
 
 	return &MessageResponse{
 		Message: "Password updated successfully",
@@ -284,30 +285,30 @@ func getUserHandler(ctx context.Context, req GetUserRequest) (*UserResponse, err
 // Update updateUserHandler to handle phone number
 func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
-
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can update other users")
 	}
+	db := ctx.Value("database").(*models.DB)
 
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID format")
 	}
-	hashedPassword, err := utils.HashPassword(req.Password)
-	if err != nil {
-		return nil, fmt.Errorf("error hashing password: %w", err)
-	}
 
+	params := gen.UpdateUserParams{
+		ID: id,
+	}
+	if req.Email != nil {
+		params.Email = pgtype.Text{String: *req.Email, Valid: true}
+	}
+	if req.IsActive != nil {
+		params.IsActive = pgtype.Bool{Bool: *req.IsActive, Valid: true}
+	}
+	if claims.IsSuperUser {
+		params.IsSuperuser = pgtype.Bool{Bool: *req.IsSuperuser, Valid: true}
+	}
 	// Save updates
-	user, err := db.UpdateUser(ctx, gen.UpdateUserParams{
-		ID:             id,
-		Email:          req.Email,
-		FullName:       pgtype.Text{String: req.FullName, Valid: true},
-		IsActive:       req.IsActive,
-		IsSuperuser:    req.IsSuperuser,
-		HashedPassword: hashedPassword,
-	})
+	user, err := db.UpdateUser(ctx, params)
 	if err != nil {
 		return nil, fmt.Errorf("error updating user: %w", err)
 	}
@@ -360,6 +361,7 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse
 			UpdatedAt:   user.UpdatedAt.Time,
 		}
 	}
+	fmt.Printf("userList: %v\n", userList)
 
 	return &UsersResponse{
 		Users: userList,
