@@ -7,9 +7,10 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/repository"
+	"github.com/wangfenjin/mojito/internal/app/models/gen"
 	"github.com/wangfenjin/mojito/internal/app/utils"
 )
 
@@ -36,7 +37,6 @@ func RegisterUsersRoutes(r chi.Router) {
 // CreateUserRequest represents the request body for creating a user
 type CreateUserRequest struct {
 	Email       string `json:"email" binding:"required,email"`
-	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
 	Password    string `json:"password" binding:"required,min=8"`
 	FullName    string `json:"full_name" binding:"required"`
 	IsActive    bool   `json:"is_active"`
@@ -47,7 +47,6 @@ type CreateUserRequest struct {
 type UpdateUserRequest struct {
 	ID          string `uri:"id" binding:"required,uuid"`
 	Email       string `json:"email" binding:"omitempty,email"`
-	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
 	Password    string `json:"password"`
 	FullName    string `json:"full_name"`
 	IsActive    bool   `json:"is_active"`
@@ -56,17 +55,15 @@ type UpdateUserRequest struct {
 
 // RegisterUserRequest represents the request body for user registration
 type RegisterUserRequest struct {
-	Email       string `json:"email" binding:"required,email"`
-	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
-	Password    string `json:"password" binding:"required,min=8"`
-	FullName    string `json:"full_name" binding:"required"`
+	Email    string `json:"email" binding:"required,email"`
+	Password string `json:"password" binding:"required,min=8"`
+	FullName string `json:"full_name" binding:"required"`
 }
 
 // UpdateUserMeRequest represents the request body for updating the current user
 type UpdateUserMeRequest struct {
-	Email       string `json:"email" binding:"omitempty,email"`
-	PhoneNumber string `json:"phone_number" binding:"omitempty,e164"`
-	FullName    string `json:"full_name"`
+	Email    string `json:"email" binding:"omitempty,email"`
+	FullName string `json:"full_name"`
 }
 
 // GetUserRequest represents the request parameters for getting a user
@@ -76,15 +73,14 @@ type GetUserRequest struct {
 
 // ListUsersRequest represents the request parameters for listing users
 type ListUsersRequest struct {
-	Skip  int `form:"skip" binding:"min=0" default:"0"`
-	Limit int `form:"limit" binding:"min=1,max=100" default:"10"`
+	Skip  int64 `form:"skip" binding:"min=0" default:"0"`
+	Limit int64 `form:"limit" binding:"min=1,max=100" default:"10"`
 }
 
 // UserResponse represents the standard user response format
 type UserResponse struct {
 	ID          uuid.UUID `json:"id"`
 	Email       string    `json:"email"`
-	PhoneNumber string    `json:"phone_number,omitempty"`
 	FullName    string    `json:"full_name"`
 	IsActive    bool      `json:"is_active"`
 	IsSuperuser bool      `json:"is_superuser"`
@@ -96,8 +92,8 @@ type UserResponse struct {
 type UsersResponse struct {
 	Users []UserResponse `json:"users"`
 	Meta  struct {
-		Skip  int `json:"skip"`
-		Limit int `json:"limit"`
+		Skip  int64 `json:"skip"`
+		Limit int64 `json:"limit"`
 	} `json:"meta"`
 }
 
@@ -110,15 +106,15 @@ type UpdatePasswordRequest struct {
 // Add new handlers
 func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, error) {
 	// Get current user ID from context
-	userID := ctx.Value("user_id").(string)
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	id, err := uuid.Parse(userID)
+	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID")
 	}
 
-	err = userRepo.Delete(ctx, id)
+	err = db.DeleteUser(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting user: %w", err)
 	}
@@ -126,22 +122,22 @@ func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, err
 }
 
 func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*MessageResponse, error) {
-	userID := ctx.Value("user_id").(string)
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	id, err := uuid.Parse(userID)
+	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID")
 	}
 
 	// Get user with current password hash from DB
-	user, err := userRepo.GetByID(ctx, id)
+	user, err := db.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
 	}
 
 	// Verify current password against stored hash
-	if !utils.CheckPasswordHash(req.CurrentPassword, user.Password) {
+	if !utils.CheckPasswordHash(req.CurrentPassword, user.HashedPassword) {
 		return nil, middleware.NewBadRequestError("incorrect current password")
 	}
 
@@ -152,8 +148,10 @@ func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*Mes
 	}
 
 	// Update with new password hash
-	user.Password = hashedNewPassword
-	err = userRepo.Update(ctx, user)
+	user, err = db.UpdateUser(ctx, gen.UpdateUserParams{
+		ID:             user.ID,
+		HashedPassword: hashedNewPassword,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error updating password: %w", err)
 	}
@@ -165,88 +163,55 @@ func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*Mes
 
 // Update handler functions
 func registerUserHandler(ctx context.Context, req RegisterUserRequest) (*UserResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
-
+	db := ctx.Value("database").(*models.DB)
 	// Check if user with this email already exists
-	existingUser, err := userRepo.GetByEmail(ctx, req.Email)
+	exists, err := db.IsUserEmailExists(ctx, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error checking existing user: %w", err)
 	}
-	if existingUser != nil {
+	if exists {
 		return nil, middleware.NewBadRequestError("user with this email already exists")
 	}
-
-	// Check phone number if provided
-	if req.PhoneNumber != "" {
-		existingUser, err = userRepo.GetByPhone(ctx, req.PhoneNumber)
-		if err != nil {
-			return nil, fmt.Errorf("error checking existing phone: %w", err)
-		}
-		if existingUser != nil {
-			return nil, middleware.NewBadRequestError("user with this phone number already exists")
-		}
+	hashPassword, err := utils.HashPassword(req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("error hashing password: %w", err)
 	}
-
-	user := &models.User{
-		Email:       req.Email,
-		PhoneNumber: req.PhoneNumber,
-		Password:    req.Password,
-		FullName:    req.FullName,
-		IsActive:    true,
-		IsSuperuser: false,
-	}
-
-	err = userRepo.Create(ctx, user)
+	user, err := db.CreateUser(ctx, gen.CreateUserParams{
+		ID:             uuid.New(),
+		Email:          req.Email,
+		HashedPassword: hashPassword,
+		FullName:       pgtype.Text{String: req.FullName, Valid: true},
+		IsActive:       true,
+		IsSuperuser:    false,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error creating user: %w", err)
 	}
-
 	return &UserResponse{
 		ID:          user.ID,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		FullName:    user.FullName,
+		FullName:    user.FullName.String,
 		IsActive:    user.IsActive,
 		IsSuperuser: user.IsSuperuser,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		CreatedAt:   user.CreatedAt.Time,
+		UpdatedAt:   user.UpdatedAt.Time,
 	}, nil
 }
 
 // Update response maps in other handlers to include phone_number
 func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*UserResponse, error) {
-	userID := ctx.Value("user_id").(string)
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	id, err := uuid.Parse(userID)
+	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID")
 	}
 
-	user, err := userRepo.GetByID(ctx, id)
-	if err != nil {
-		return nil, fmt.Errorf("error getting user: %w", err)
-	}
-
-	if req.Email != "" {
-		user.Email = req.Email
-	}
-	if req.FullName != "" {
-		user.FullName = req.FullName
-	}
-	if req.PhoneNumber != "" {
-		// Check if phone number is already used by another user
-		existingUser, err := userRepo.GetByPhone(ctx, req.PhoneNumber)
-		if err != nil {
-			return nil, fmt.Errorf("error checking existing phone: %w", err)
-		}
-		if existingUser != nil && existingUser.ID != user.ID {
-			return nil, middleware.NewBadRequestError("phone number already in use")
-		}
-		user.PhoneNumber = req.PhoneNumber
-	}
-
-	err = userRepo.Update(ctx, user)
+	user, err := db.UpdateUser(ctx, gen.UpdateUserParams{
+		ID:       id,
+		FullName: pgtype.Text{String: req.FullName, Valid: true},
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error updating user: %w", err)
 	}
@@ -254,89 +219,74 @@ func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*Us
 	return &UserResponse{
 		ID:          user.ID,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		FullName:    user.FullName,
+		FullName:    user.FullName.String,
 		IsActive:    user.IsActive,
 		IsSuperuser: user.IsSuperuser,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		CreatedAt:   user.CreatedAt.Time,
+		UpdatedAt:   user.UpdatedAt.Time,
 	}, nil
 }
 
 // Update getCurrentUserHandler response
 func getCurrentUserHandler(ctx context.Context, _ any) (*UserResponse, error) {
-	userID := ctx.Value("user_id").(string)
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	id, err := uuid.Parse(userID)
+	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID")
 	}
-
-	user, err := userRepo.GetByID(ctx, id)
+	user, err := db.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
-	}
-	if user == nil {
-		return nil, middleware.NewBadRequestError("user not found")
 	}
 
 	return &UserResponse{
 		ID:          user.ID,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		FullName:    user.FullName,
+		FullName:    user.FullName.String,
 		IsActive:    user.IsActive,
 		IsSuperuser: user.IsSuperuser,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		CreatedAt:   user.CreatedAt.Time,
+		UpdatedAt:   user.UpdatedAt.Time,
 	}, nil
 }
 
 // Update getUserHandler response
 func getUserHandler(ctx context.Context, req GetUserRequest) (*UserResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	if !claims.IsSuperUser {
+		return nil, middleware.NewForbiddenError("only superusers can get other users")
+	}
+	db := ctx.Value("database").(*models.DB)
 
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID format")
 	}
 
-	user, err := userRepo.GetByID(ctx, id)
+	user, err := db.GetUserByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
-	}
-	if user == nil {
-		return nil, middleware.NewBadRequestError("user not found")
 	}
 
 	return &UserResponse{
 		ID:          user.ID,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		FullName:    user.FullName,
+		FullName:    user.FullName.String,
 		IsActive:    user.IsActive,
 		IsSuperuser: user.IsSuperuser,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		CreatedAt:   user.CreatedAt.Time,
+		UpdatedAt:   user.UpdatedAt.Time,
 	}, nil
 }
 
 // Update updateUserHandler to handle phone number
 func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	db := ctx.Value("database").(*models.DB)
 
-	// check if user is superuser
-	userID := ctx.Value("user_id").(string)
-	currentID, err := uuid.Parse(userID)
-	if err != nil {
-		return nil, middleware.NewBadRequestError("invalid user ID format")
-	}
-	currentUser, err := userRepo.GetByID(ctx, currentID)
-	if err != nil {
-		return nil, fmt.Errorf("error getting user: %w", err)
-	}
-	if !currentUser.IsSuperuser {
+	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can update other users")
 	}
 
@@ -344,38 +294,20 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserRespons
 	if err != nil {
 		return nil, middleware.NewBadRequestError("invalid user ID format")
 	}
-
-	// Get existing user
-	user, err := userRepo.GetByID(ctx, id)
+	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
-		return nil, fmt.Errorf("error getting user: %w", err)
+		return nil, fmt.Errorf("error hashing password: %w", err)
 	}
-	if user == nil {
-		return nil, middleware.NewBadRequestError("user not found")
-	}
-
-	// Explicitly reject email updates
-	if req.Email != "" {
-		return nil, middleware.NewBadRequestError("email updates are not allowed")
-	}
-
-	// Update fields if provided
-	if req.Password != "" {
-		// Hash the password
-		hashedPassword, err := utils.HashPassword(req.Password)
-		if err != nil {
-			return nil, fmt.Errorf("error hashing password: %w", err)
-		}
-		user.Password = hashedPassword
-	}
-	if req.FullName != "" {
-		user.FullName = req.FullName
-	}
-	user.IsActive = req.IsActive
-	user.IsSuperuser = req.IsSuperuser
 
 	// Save updates
-	err = userRepo.Update(ctx, user)
+	user, err := db.UpdateUser(ctx, gen.UpdateUserParams{
+		ID:             id,
+		Email:          req.Email,
+		FullName:       pgtype.Text{String: req.FullName, Valid: true},
+		IsActive:       req.IsActive,
+		IsSuperuser:    req.IsSuperuser,
+		HashedPassword: hashedPassword,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error updating user: %w", err)
 	}
@@ -383,18 +315,21 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserRespons
 	return &UserResponse{
 		ID:          user.ID,
 		Email:       user.Email,
-		PhoneNumber: user.PhoneNumber,
-		FullName:    user.FullName,
+		FullName:    user.FullName.String,
 		IsActive:    user.IsActive,
 		IsSuperuser: user.IsSuperuser,
-		CreatedAt:   user.CreatedAt,
-		UpdatedAt:   user.UpdatedAt,
+		CreatedAt:   user.CreatedAt.Time,
+		UpdatedAt:   user.UpdatedAt.Time,
 	}, nil
 }
 
 // Update listUsersHandler response
 func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	claims := ctx.Value("claims").(*utils.Claims)
+	if !claims.IsSuperUser {
+		return nil, middleware.NewForbiddenError("only superusers can list users")
+	}
+	db := ctx.Value("database").(*models.DB)
 
 	// Set default values for pagination
 	if req.Limit <= 0 {
@@ -404,7 +339,10 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse
 		req.Skip = 0
 	}
 
-	users, err := userRepo.List(ctx, req.Skip, req.Limit)
+	users, err := db.ListUsers(ctx, gen.ListUsersParams{
+		Limit:  req.Limit,
+		Offset: req.Skip,
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error listing users: %w", err)
 	}
@@ -415,20 +353,19 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse
 		userList[i] = UserResponse{
 			ID:          user.ID,
 			Email:       user.Email,
-			PhoneNumber: user.PhoneNumber,
-			FullName:    user.FullName,
+			FullName:    user.FullName.String,
 			IsActive:    user.IsActive,
 			IsSuperuser: user.IsSuperuser,
-			CreatedAt:   user.CreatedAt,
-			UpdatedAt:   user.UpdatedAt,
+			CreatedAt:   user.CreatedAt.Time,
+			UpdatedAt:   user.UpdatedAt.Time,
 		}
 	}
 
 	return &UsersResponse{
 		Users: userList,
 		Meta: struct {
-			Skip  int `json:"skip"`
-			Limit int `json:"limit"`
+			Skip  int64 `json:"skip"`
+			Limit int64 `json:"limit"`
 		}{
 			Skip:  req.Skip,
 			Limit: req.Limit,

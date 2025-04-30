@@ -7,7 +7,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
-	"github.com/wangfenjin/mojito/internal/app/repository"
+	"github.com/wangfenjin/mojito/internal/app/models"
+	"github.com/wangfenjin/mojito/internal/app/models/gen"
 )
 
 // RegisterTestRoutes registers test-related routes
@@ -29,16 +30,15 @@ func shutdownHandler(_ context.Context, _ EmptyRequest) (*MessageResponse, error
 }
 
 func cleanupHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
-	itemRepo := ctx.Value("itemRepository").(*repository.ItemRepository)
+	db := ctx.Value("database").(*models.DB)
 
-	// cleanup item first, because item has foreign key constraint with user
-	if err := itemRepo.CleanupTestData(ctx); err != nil {
-		return nil, fmt.Errorf("error cleaning up item data: %w", err)
-	}
-
-	if err := userRepo.CleanupTestData(ctx); err != nil {
-		return nil, fmt.Errorf("error cleaning up user data: %w", err)
+	if err := db.WithTx(ctx, func(q *gen.Queries) error {
+		if err := q.CleanupItems(ctx); err != nil {
+			return fmt.Errorf("error deleting items: %w", err)
+		}
+		return q.CleanupUsers(ctx)
+	}); err != nil {
+		return nil, fmt.Errorf("error cleaning up test data: %w", err)
 	}
 
 	return &MessageResponse{

@@ -60,8 +60,6 @@ jsonpath "$.message" == "password recovery email sent"
 # Test password recovery for non-existent user
 POST {{host}}/api/v1/password-recovery/nonexistent@example.com
 HTTP 400
-[Asserts]
-jsonpath "$.message" == "user not found"
 
 # Test reset password
 POST {{host}}/api/v1/reset-password/

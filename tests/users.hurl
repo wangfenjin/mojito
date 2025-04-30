@@ -7,7 +7,6 @@ POST {{host}}/api/v1/users/signup
 Content-Type: application/json
 {
     "email": "test@example.com",
-    "phone_number": "+8613800138000",
     "password": "password123",
     "full_name": "Test User"
 }
@@ -17,7 +16,6 @@ HTTP 200
 user_id: jsonpath "$.id"
 [Asserts]
 jsonpath "$.email" == "test@example.com"
-jsonpath "$.phone_number" == "+8613800138000"
 jsonpath "$.full_name" == "Test User"
 jsonpath "$.is_active" == true
 jsonpath "$.is_superuser" == false
@@ -49,7 +47,6 @@ Authorization: Bearer {{token}}
 HTTP 200
 [Asserts]
 jsonpath "$.email" == "test@example.com"
-jsonpath "$.phone_number" == "+8613800138000"
 jsonpath "$.full_name" == "Test User"
 jsonpath "$.id" == {{user_id}}
 
@@ -59,13 +56,11 @@ jsonpath "$.id" == {{user_id}}
 # Content-Type: application/json
 # {
     # "full_name": "Updated User",
-    # "phone_number": "+8613800138001"
 # }
 
 # HTTP 200
 # [Asserts]
 # jsonpath "$.full_name" == "Updated User"
-# jsonpath "$.phone_number" == "+8613800138001"
 # jsonpath "$.id" == {{user_id}}
 
 # Update password
@@ -88,12 +83,7 @@ Authorization: Bearer {{token}}
 skip: 0
 limit: 10
 
-HTTP 200
-[Asserts]
-jsonpath "$.users" isCollection
-jsonpath "$.users[0]" exists
-jsonpath "$.meta.skip" == 0
-jsonpath "$.meta.limit" == 10
+HTTP 403
 
 # Delete current user
 DELETE {{host}}/api/v1/users/me

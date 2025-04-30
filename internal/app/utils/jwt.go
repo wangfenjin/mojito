@@ -11,8 +11,9 @@ var jwtSecret = []byte("your-secret-key") // In production, this should be in co
 
 // Claims is a custom JWT claims
 type Claims struct {
-	UserID string `json:"user_id"`
-	Email  string `json:"email"`
+	UserID      string `json:"user_id"`
+	Email       string `json:"email"`
+	IsSuperUser bool
 	jwt.RegisteredClaims
 }
 

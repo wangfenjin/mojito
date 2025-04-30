@@ -6,7 +6,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
-	"github.com/wangfenjin/mojito/internal/app/repository"
+	"github.com/wangfenjin/mojito/internal/app/models"
 	"github.com/wangfenjin/mojito/internal/app/utils"
 	"github.com/wangfenjin/mojito/internal/pkg/logger"
 )
@@ -72,19 +72,16 @@ type HTMLContentResponse struct {
 
 // Login handlers with updated signatures
 func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (*TokenResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	userDB := ctx.Value("database").(*models.DB)
 
 	// Get user by email
-	user, err := userRepo.GetByEmail(ctx, req.Username)
+	user, err := userDB.GetUserByEmail(ctx, req.Username)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
 	}
-	if user == nil {
-		return nil, middleware.NewBadRequestError("invalid credentials")
-	}
 
 	// Check password using utils package
-	if !utils.CheckPasswordHash(req.Password, user.Password) {
+	if !utils.CheckPasswordHash(req.Password, user.HashedPassword) {
 		return nil, middleware.NewBadRequestError("invalid credentials")
 	}
 
@@ -130,15 +127,12 @@ func testTokenHandler(_ context.Context, req TestTokenRequest) (*TestTokenRespon
 }
 
 func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (*MessageResponse, error) {
-	userRepo := ctx.Value("userRepository").(*repository.UserRepository)
+	userDB := ctx.Value("database").(*models.DB)
 
 	// Check if user exists
-	user, err := userRepo.GetByEmail(ctx, req.Email)
+	_, err := userDB.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
-	}
-	if user == nil {
-		return nil, middleware.NewBadRequestError("user not found")
 	}
 
 	// TODO: Generate password reset token and send email

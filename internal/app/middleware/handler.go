@@ -3,7 +3,6 @@ package middleware
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"reflect"
 	"runtime"
@@ -11,6 +10,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
+	"github.com/wangfenjin/mojito/internal/app/models"
 	"github.com/wangfenjin/mojito/internal/app/utils"
 	"github.com/wangfenjin/mojito/internal/pkg/logger"
 	"github.com/wangfenjin/mojito/pkg/openapi"
@@ -136,7 +137,6 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 				for i := 0; i < reqType.NumField(); i++ {
 					field := reqType.Field(i)
 					uriTag := field.Tag.Get("uri")
-					fmt.Printf("uriTag: %s\n", uriTag)
 					if uriTag != "" {
 						// Extract the parameter name from the uri tag
 						paramName := uriTag
@@ -218,11 +218,18 @@ func RequireAuth() func(http.Handler) http.Handler {
 				respondWithError(w, NewUnauthorizedError(err.Error()))
 				return
 			}
+			db := r.Context().Value("database").(*models.DB)
+			userID, err := uuid.Parse(claims.UserID)
+			user, err := db.GetUserByID(r.Context(), userID)
+			if err != nil {
+				respondWithError(w, NewUnauthorizedError(err.Error()))
+				return
+			}
+			claims.IsSuperUser = user.IsSuperuser
 
 			// Add claims to context
 			ctx := r.Context()
-			ctx = context.WithValue(ctx, "user_id", claims.UserID)
-			ctx = context.WithValue(ctx, "email", claims.Email)
+			ctx = context.WithValue(ctx, "claims", claims)
 
 			// Call next handler with updated context
 			next.ServeHTTP(w, r.WithContext(ctx))

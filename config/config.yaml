@@ -7,7 +7,6 @@ server:
   shutdownTimeout: 5
 
 database:
-  type: sqlite3
   host: localhost
   port: 5432
   user: postgres
@@ -15,7 +14,6 @@ database:
   name: mojito
   sslMode: disable
   timeZone: UTC
-  sqlitePath: ./mojito.db
 
 auth:
   secretKey: supersecretkey
