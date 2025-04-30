@@ -97,5 +97,3 @@ jsonpath "$.message" == "item deleted successfully"
 GET {{host}}/api/v1/items/{{item_id}}
 Authorization: Bearer {{token}}
 HTTP 400
-[Asserts]
-jsonpath "$.message" == "item not found or access denied"

@@ -37,10 +37,7 @@ jobs:
         with:
           config: ./build/ci/revive.toml
 
-      - name: Install Hurl
-        run: |
-          curl -LO https://github.com/Orange-OpenSource/hurl/releases/download/2.0.1/hurl_2.0.1_amd64.deb
-          sudo dpkg -i hurl_2.0.1_amd64.deb
+      - uses: gacts/install-hurl@v1
 
       # https://go.dev/doc/build-cover
       - name: Build and start server with coverage
@@ -52,10 +49,10 @@ jobs:
 
       - name: Run API tests with Hurl
         run: |
-          hurl --test --variable host=http://localhost:8080 tests/users.hurl
-          hurl --test --variable host=http://localhost:8080 tests/login.hurl
-          hurl --test --variable host=http://localhost:8080 tests/items.hurl
           hurl --test --variable host=http://localhost:8080 tests/utils.hurl
+          hurl --test --variable host=http://localhost:8080 tests/login.hurl
+          hurl --test --variable host=http://localhost:8080 tests/users.hurl
+          hurl --test --variable host=http://localhost:8080 tests/items.hurl
           curl http://localhost:8080/api/v1/test/shutdown || true
 
       - name: post process coverage profiles
