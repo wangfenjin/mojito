@@ -19,6 +19,9 @@ jobs:
           POSTGRES_DB: mojito
         ports:
           - 5432:5432
+        volumes:
+        # - postgres_data:/var/lib/postgresql/data
+        - ./internal/app/models/schema.sql:/docker-entrypoint-initdb.d/schema.sql
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
