@@ -12,17 +12,6 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
-const countItemsByOwner = `-- name: CountItemsByOwner :one
-SELECT COUNT(*) FROM public.item WHERE owner_id = $1
-`
-
-func (q *Queries) CountItemsByOwner(ctx context.Context, ownerID uuid.UUID) (int64, error) {
-	row := q.db.QueryRow(ctx, countItemsByOwner, ownerID)
-	var count int64
-	err := row.Scan(&count)
-	return count, err
-}
-
 const createItem = `-- name: CreateItem :one
 INSERT INTO public.item (
     id,
@@ -85,44 +74,6 @@ func (q *Queries) GetItemByID(ctx context.Context, id uuid.UUID) (Item, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
-}
-
-const listItems = `-- name: ListItems :many
-SELECT id, owner_id, title, description, created_at, updated_at FROM public.item 
-ORDER BY created_at DESC
-LIMIT $1 OFFSET $2
-`
-
-type ListItemsParams struct {
-	Limit  int64
-	Offset int64
-}
-
-func (q *Queries) ListItems(ctx context.Context, arg ListItemsParams) ([]Item, error) {
-	rows, err := q.db.Query(ctx, listItems, arg.Limit, arg.Offset)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-	var items []Item
-	for rows.Next() {
-		var i Item
-		if err := rows.Scan(
-			&i.ID,
-			&i.OwnerID,
-			&i.Title,
-			&i.Description,
-			&i.CreatedAt,
-			&i.UpdatedAt,
-		); err != nil {
-			return nil, err
-		}
-		items = append(items, i)
-	}
-	if err := rows.Err(); err != nil {
-		return nil, err
-	}
-	return items, nil
 }
 
 const listItemsByOwner = `-- name: ListItemsByOwner :many

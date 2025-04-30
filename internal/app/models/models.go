@@ -55,7 +55,7 @@ func (db *DB) WithTx(ctx context.Context, fn func(*gen.Queries) error) error {
 		return err
 	}
 
-	q := gen.New(tx)
+	q := db.Queries.WithTx(tx)
 	err = fn(q)
 	if err != nil {
 		if rbErr := tx.Rollback(ctx); rbErr != nil {

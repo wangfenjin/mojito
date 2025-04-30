@@ -11,11 +11,6 @@ INSERT INTO public.item (
 -- name: GetItemByID :one
 SELECT * FROM public.item WHERE id = $1 LIMIT 1;
 
--- name: ListItems :many
-SELECT * FROM public.item 
-ORDER BY created_at DESC
-LIMIT $1 OFFSET $2;
-
 -- name: ListItemsByOwner :many
 SELECT * FROM public.item 
 WHERE owner_id = $1 
@@ -31,6 +26,3 @@ RETURNING *;
 
 -- name: DeleteItem :exec
 DELETE FROM public.item WHERE id = $1;
-
--- name: CountItemsByOwner :one
-SELECT COUNT(*) FROM public.item WHERE owner_id = $1;
