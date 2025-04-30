@@ -2,9 +2,9 @@ name: Mojito CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   lint-and-test:
@@ -20,8 +20,8 @@ jobs:
         ports:
           - 5432:5432
         volumes:
-        # - postgres_data:/var/lib/postgresql/data
-        - ./internal/app/models/schema.sql:/docker-entrypoint-initdb.d/schema.sql
+          - postgres_data:/var/lib/postgresql/data
+          - ./internal/app/models/schema.sql:/docker-entrypoint-initdb.d/schema.sql
         options: >-
           --health-cmd pg_isready
           --health-interval 10s
@@ -34,7 +34,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v4
         with:
-          go-version: '1.24'
+          go-version: "1.24"
           cache: true
 
       - name: Check formatting
