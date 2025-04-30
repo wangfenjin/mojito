@@ -4,28 +4,27 @@ package routes
 import (
 	"net/http"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/wangfenjin/mojito/internal/pkg/logger"
 	"github.com/wangfenjin/mojito/pkg/openapi"
 )
 
 // RegisterDocsRoutes registers routes for API documentation
-func RegisterDocsRoutes(r *gin.Engine) {
-	// Serve Swagger UI
-	docsGroup := r.Group("/docs")
-	{
+func RegisterDocsRoutes(r chi.Router) {
+	r.Route("/docs", func(r chi.Router) {
 		// Serve the OpenAPI spec
-		docsGroup.GET("/openapi.json", func(ctx *gin.Context) {
-			ctx.File("./api/openapi.json")
+		r.Get("/openapi.json", func(w http.ResponseWriter, r *http.Request) {
+			http.ServeFile(w, r, "./api/openapi.json")
 		})
 
 		// Serve Swagger UI using CDN
-		docsGroup.GET("/swagger/*any", func(ctx *gin.Context) {
+		r.Get("/swagger/*", func(w http.ResponseWriter, r *http.Request) {
 			// Generate OpenAPI spec
 			err := openapi.GenerateSwaggerJSON("./api/openapi.json")
 			if err != nil {
 				logger.GetLogger().Error("Failed to generate OpenAPI spec", "error", err)
-				ctx.AbortWithStatus(http.StatusInternalServerError)
+				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
+				return
 			}
 
 			// HTML for Swagger UI using CDN
@@ -69,7 +68,8 @@ func RegisterDocsRoutes(r *gin.Engine) {
 </body>
 </html>
 `
-			ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(swaggerHTML))
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			w.Write([]byte(swaggerHTML))
 		})
-	}
+	})
 }

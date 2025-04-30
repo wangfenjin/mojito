@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/repository"
 	"github.com/wangfenjin/mojito/internal/app/utils"
@@ -12,24 +12,14 @@ import (
 )
 
 // RegisterLoginRoutes registers all login related routes
-func RegisterLoginRoutes(r *gin.Engine) {
-	loginGroup := r.Group("/api/v1")
-	{
-		loginGroup.POST("/login/access-token",
-			middleware.WithHandler(loginAccessTokenHandler))
-
-		loginGroup.GET("/login/test-token",
-			middleware.WithHandler(testTokenHandler))
-
-		loginGroup.POST("/password-recovery/:email",
-			middleware.WithHandler(recoverPasswordHandler))
-
-		loginGroup.POST("/reset-password/",
-			middleware.WithHandler(resetPasswordHandler))
-
-		loginGroup.POST("/password-recovery-html-content/:email",
-			middleware.WithHandler(recoverPasswordHTMLContentHandler))
-	}
+func RegisterLoginRoutes(r chi.Router) {
+	r.Route("/api/v1", func(r chi.Router) {
+		r.Post("/login/access-token", middleware.WithHandler(loginAccessTokenHandler))
+		r.Get("/login/test-token", middleware.WithHandler(testTokenHandler))
+		r.Post("/password-recovery/{email}", middleware.WithHandler(recoverPasswordHandler))
+		r.Post("/reset-password/", middleware.WithHandler(resetPasswordHandler))
+		r.Post("/password-recovery-html-content/{email}", middleware.WithHandler(recoverPasswordHTMLContentHandler))
+	})
 }
 
 // LoginAccessTokenRequest structs

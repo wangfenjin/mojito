@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 	"github.com/wangfenjin/mojito/internal/app/models"
@@ -14,35 +14,23 @@ import (
 )
 
 // RegisterUsersRoutes registers all user related routes
-func RegisterUsersRoutes(r *gin.Engine) {
-	usersGroup := r.Group("/api/v1/users", middleware.RequireAuth())
-	{
-		// Protected routes (require auth)
-		usersGroup.GET("/",
-			middleware.WithHandler(listUsersHandler))
+func RegisterUsersRoutes(r chi.Router) {
+	// Protected routes (require auth)
+	r.Route("/api/v1/users", func(r chi.Router) {
+		// Apply auth middleware to all routes in this group
+		r.Use(middleware.RequireAuth())
 
-		usersGroup.GET("/me",
-			middleware.WithHandler(getCurrentUserHandler))
-
-		usersGroup.DELETE("/me",
-			middleware.WithHandler(deleteCurrentUserHandler))
-
-		usersGroup.PATCH("/me",
-			middleware.WithHandler(updateCurrentUserHandler))
-
-		usersGroup.PATCH("/me/password",
-			middleware.WithHandler(updatePasswordHandler))
-
-		usersGroup.GET("/:id",
-			middleware.WithHandler(getUserHandler))
-
-		usersGroup.PATCH("/:id",
-			middleware.WithHandler(updateUserHandler))
-	}
+		r.Get("/", middleware.WithHandler(listUsersHandler))
+		r.Get("/me", middleware.WithHandler(getCurrentUserHandler))
+		r.Delete("/me", middleware.WithHandler(deleteCurrentUserHandler))
+		r.Patch("/me", middleware.WithHandler(updateCurrentUserHandler))
+		r.Patch("/me/password", middleware.WithHandler(updatePasswordHandler))
+		r.Get("/{id}", middleware.WithHandler(getUserHandler))
+		r.Patch("/{id}", middleware.WithHandler(updateUserHandler))
+	})
 
 	// Public routes (no auth required)
-	r.POST("/api/v1/users/signup",
-		middleware.WithHandler(registerUserHandler))
+	r.Post("/api/v1/users/signup", middleware.WithHandler(registerUserHandler))
 }
 
 // CreateUserRequest represents the request body for creating a user

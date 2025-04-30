@@ -3,19 +3,16 @@ package routes
 import (
 	"context"
 
-	"github.com/gin-gonic/gin"
+	"github.com/go-chi/chi/v5"
 	"github.com/wangfenjin/mojito/internal/app/middleware"
 )
 
 // RegisterUtilRoutes registers all utility related routes
-func RegisterUtilRoutes(r *gin.Engine) {
-	utilsGroup := r.Group("/api/v1/utils")
-	{
-		utilsGroup.GET("/health-check/",
-			middleware.WithHandler(healthCheckHandler))
-		utilsGroup.POST("/test-email/",
-			middleware.WithHandler(testEmailHandler))
-	}
+func RegisterUtilRoutes(r chi.Router) {
+	r.Route("/api/v1/utils", func(r chi.Router) {
+		r.Get("/health-check/", middleware.WithHandler(healthCheckHandler))
+		r.Post("/test-email/", middleware.WithHandler(testEmailHandler))
+	})
 }
 
 // HealthCheckResponse is the response for the health check
