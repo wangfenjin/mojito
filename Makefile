@@ -50,18 +50,6 @@ test-coverage-html:
 	@echo "Coverage report generated: coverage.html"
 	@open coverage.html
 
-
-# Build migrator binary
-.PHONY: build-migrator
-build-migrator:
-	@mkdir -p bin
-	@go build -o bin/migrator cmd/migrator/main.go
-
-# Generate migration SQL files
-.PHONY: gen-migration
-gen-migration: build-migrator
-	./bin/migrator
-
 # Clean all build artifacts and generated files
 .PHONY: clean
 clean:
@@ -78,6 +66,7 @@ test-api:
 	@hurl --test --variable host=http://localhost:8080 tests/login.hurl
 	@hurl --test --variable host=http://localhost:8080 tests/users.hurl
 	@hurl --test --variable host=http://localhost:8080 tests/items.hurl
+	@hurl --test --variable host=http://localhost:8080 tests/utils.hurl
 
 # Run all tests (unit tests and API tests)
 .PHONY: test-all
