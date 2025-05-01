@@ -3,8 +3,10 @@ package routes
 import (
 	"context"
 	"fmt"
+	"log/slog"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httplog/v2"
 	"github.com/wangfenjin/mojito/common"
 	"github.com/wangfenjin/mojito/middleware"
 	"github.com/wangfenjin/mojito/models"
@@ -83,7 +85,6 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 	if !common.CheckPasswordHash(req.Password, user.HashedPassword) {
 		return nil, middleware.NewBadRequestError("invalid credentials")
 	}
-
 	// Check if user is active
 	if !user.IsActive {
 		return nil, middleware.NewBadRequestError("inactive user")
@@ -94,7 +95,6 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 	if err != nil {
 		return nil, fmt.Errorf("error generating token: %w", err)
 	}
-
 	return &TokenResponse{
 		AccessToken: token,
 		TokenType:   "bearer",
@@ -107,14 +107,14 @@ type TestTokenRequest struct {
 }
 
 // Update handler signatures to use pointer returns
-func testTokenHandler(_ context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
+func testTokenHandler(ctx context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
 	// Get token from Authorization header
 	authHeader := req.Token
 	// Extract token from "Bearer <token>"
 	tokenString := string(authHeader[7:])
 	claims, err := common.ValidateToken(tokenString)
 	if err != nil {
-		common.GetLogger().Error("error validating token", "error", err)
+		httplog.LogEntrySetField(ctx, "error", slog.StringValue(err.Error()))
 		return nil, middleware.NewUnauthorizedError("invalid token")
 	}
 

@@ -63,6 +63,7 @@ type EmailConfig struct {
 
 // LoggingConfig holds all logging-related configuration
 type LoggingConfig struct {
+	Env   string
 	Level string
 	File  string
 }
