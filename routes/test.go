@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/wangfenjin/mojito/internal/app/middleware"
-	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/models/gen"
-	"github.com/wangfenjin/mojito/internal/app/utils"
+	"github.com/wangfenjin/mojito/common"
+	"github.com/wangfenjin/mojito/middleware"
+	"github.com/wangfenjin/mojito/models"
+	"github.com/wangfenjin/mojito/models/gen"
 )
 
 // RegisterTestRoutes registers test-related routes
@@ -36,7 +36,7 @@ type CreateSuperUserRequest struct {
 func createSuperUserHandler(ctx context.Context, req CreateSuperUserRequest) (*MessageResponse, error) {
 	db := models.GetDB()
 
-	hashedPassword, err := utils.HashPassword(req.Password)
+	hashedPassword, err := common.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("error hashing password: %w", err)
 	}

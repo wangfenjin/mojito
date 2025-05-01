@@ -8,7 +8,7 @@ import (
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
-	"github.com/wangfenjin/mojito/internal/app/models/gen"
+	"github.com/wangfenjin/mojito/models/gen"
 )
 
 // globalDB holds the global database connection instance

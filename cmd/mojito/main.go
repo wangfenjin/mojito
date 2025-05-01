@@ -10,20 +10,19 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
-	"github.com/wangfenjin/mojito/internal/app/config"
-	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/routes"
-	"github.com/wangfenjin/mojito/internal/pkg/logger"
+	"github.com/wangfenjin/mojito/common"
+	"github.com/wangfenjin/mojito/models"
+	"github.com/wangfenjin/mojito/routes"
 )
 
 func main() {
 	// Load configuration
-	cfg, err := config.Load("")
+	cfg, err := common.Load("")
 	if err != nil {
-		logger.GetLogger().Error("Failed to load configuration", "err", err)
+		common.GetLogger().Error("Failed to load configuration", "err", err)
 		panic(err)
 	}
-	logger.GetLogger().Info("Configuration loaded", "config", cfg)
+	common.GetLogger().Info("Configuration loaded", "config", cfg)
 
 	// Initialize database connection
 	_, err = models.Connect(models.ConnectionParams{
@@ -63,7 +62,7 @@ func main() {
 
 	// Start the server
 	port := strconv.Itoa(cfg.Server.Port)
-	logger.GetLogger().Info("Starting server on :" + port)
+	common.GetLogger().Info("Starting server on :" + port)
 	if err := http.ListenAndServe(":"+port, r); err != nil {
 		panic(err)
 	}

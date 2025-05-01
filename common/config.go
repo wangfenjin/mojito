@@ -1,5 +1,5 @@
-// Package config provides configuration loading and management for the application
-package config
+// Package common provides common utilities for the application
+package common
 
 import (
 	"fmt"

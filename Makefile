@@ -29,38 +29,26 @@ watch:
 # Run tests
 test:
 	@echo "Running tests..."
-	@go test ./internal/... ./cmd/...
+	@go test ./...
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@go test -v ./internal/... ./cmd/...
+	@go test -v ./...
 
 # Run tests with coverage report
 test-coverage:
 	@echo "Running tests with coverage report..."
-	@go test -cover ./internal/... ./cmd/...
+	@go test -cover ./...
 	@echo "For detailed coverage report, run: make test-coverage-html"
 
 # Generate HTML coverage report
 test-coverage-html:
 	@echo "Generating HTML coverage report..."
-	@go test -coverprofile=coverage.out ./internal/... ./cmd/...
+	@go test -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 	@open coverage.html
-
-
-# Build migrator binary
-.PHONY: build-migrator
-build-migrator:
-	@mkdir -p bin
-	@go build -o bin/migrator cmd/migrator/main.go
-
-# Generate migration SQL files
-.PHONY: gen-migration
-gen-migration: build-migrator
-	./bin/migrator
 
 # Clean all build artifacts and generated files
 .PHONY: clean
@@ -78,6 +66,7 @@ test-api:
 	@hurl --test --variable host=http://localhost:8080 tests/login.hurl
 	@hurl --test --variable host=http://localhost:8080 tests/users.hurl
 	@hurl --test --variable host=http://localhost:8080 tests/items.hurl
+	@hurl --test --variable host=http://localhost:8080 tests/utils.hurl
 
 # Run all tests (unit tests and API tests)
 .PHONY: test-all

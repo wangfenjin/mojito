@@ -5,10 +5,9 @@ import (
 	"fmt"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/wangfenjin/mojito/internal/app/middleware"
-	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/utils"
-	"github.com/wangfenjin/mojito/internal/pkg/logger"
+	"github.com/wangfenjin/mojito/common"
+	"github.com/wangfenjin/mojito/middleware"
+	"github.com/wangfenjin/mojito/models"
 )
 
 // RegisterLoginRoutes registers all login related routes
@@ -81,7 +80,7 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 	}
 
 	// Check password using utils package
-	if !utils.CheckPasswordHash(req.Password, user.HashedPassword) {
+	if !common.CheckPasswordHash(req.Password, user.HashedPassword) {
 		return nil, middleware.NewBadRequestError("invalid credentials")
 	}
 
@@ -91,7 +90,7 @@ func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (
 	}
 
 	// Generate token
-	token, err := utils.GenerateToken(user.ID.String(), user.Email)
+	token, err := common.GenerateToken(user.ID.String(), user.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error generating token: %w", err)
 	}
@@ -111,12 +110,11 @@ type TestTokenRequest struct {
 func testTokenHandler(_ context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
 	// Get token from Authorization header
 	authHeader := req.Token
-	logger.GetLogger().Debug("authHeader", "token", authHeader)
 	// Extract token from "Bearer <token>"
 	tokenString := string(authHeader[7:])
-	claims, err := utils.ValidateToken(tokenString)
+	claims, err := common.ValidateToken(tokenString)
 	if err != nil {
-		logger.GetLogger().Error("error validating token", "error", err)
+		common.GetLogger().Error("error validating token", "error", err)
 		return nil, middleware.NewUnauthorizedError("invalid token")
 	}
 

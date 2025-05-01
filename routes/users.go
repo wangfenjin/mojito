@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/wangfenjin/mojito/internal/app/middleware"
-	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/models/gen"
-	"github.com/wangfenjin/mojito/internal/app/utils"
+	"github.com/wangfenjin/mojito/common"
+	"github.com/wangfenjin/mojito/middleware"
+	"github.com/wangfenjin/mojito/models"
+	"github.com/wangfenjin/mojito/models/gen"
 )
 
 // RegisterUsersRoutes registers all user related routes
@@ -105,7 +105,7 @@ type UpdatePasswordRequest struct {
 // Add new handlers
 func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, error) {
 	// Get current user ID from context
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
@@ -121,7 +121,7 @@ func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, err
 }
 
 func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*MessageResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
@@ -136,12 +136,12 @@ func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*Mes
 	}
 
 	// Verify current password against stored hash
-	if !utils.CheckPasswordHash(req.CurrentPassword, user.HashedPassword) {
+	if !common.CheckPasswordHash(req.CurrentPassword, user.HashedPassword) {
 		return nil, middleware.NewBadRequestError("incorrect current password")
 	}
 
 	// Hash the new password
-	hashedNewPassword, err := utils.HashPassword(req.NewPassword)
+	hashedNewPassword, err := common.HashPassword(req.NewPassword)
 	if err != nil {
 		return nil, fmt.Errorf("error hashing password: %w", err)
 	}
@@ -173,7 +173,7 @@ func registerUserHandler(ctx context.Context, req RegisterUserRequest) (*UserRes
 	if exists {
 		return nil, middleware.NewBadRequestError("user with this email already exists")
 	}
-	hashPassword, err := utils.HashPassword(req.Password)
+	hashPassword, err := common.HashPassword(req.Password)
 	if err != nil {
 		return nil, fmt.Errorf("error hashing password: %w", err)
 	}
@@ -201,7 +201,7 @@ func registerUserHandler(ctx context.Context, req RegisterUserRequest) (*UserRes
 
 // Update response maps in other handlers to include phone_number
 func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*UserResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
@@ -230,7 +230,7 @@ func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*Us
 
 // Update getCurrentUserHandler response
 func getCurrentUserHandler(ctx context.Context, _ any) (*UserResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
@@ -255,7 +255,7 @@ func getCurrentUserHandler(ctx context.Context, _ any) (*UserResponse, error) {
 
 // Update getUserHandler response
 func getUserHandler(ctx context.Context, req GetUserRequest) (*UserResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can get other users")
 	}
@@ -284,7 +284,7 @@ func getUserHandler(ctx context.Context, req GetUserRequest) (*UserResponse, err
 
 // Update updateUserHandler to handle phone number
 func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can update other users")
 	}
@@ -329,7 +329,7 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserRespons
 
 // Update listUsersHandler response
 func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can list users")
 	}
