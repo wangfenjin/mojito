@@ -298,13 +298,16 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserRespons
 	params := gen.UpdateUserParams{
 		ID: id,
 	}
+	if req.FullName != nil {
+		params.FullName = pgtype.Text{String: *req.FullName, Valid: true}
+	}
 	if req.Email != nil {
 		params.Email = pgtype.Text{String: *req.Email, Valid: true}
 	}
 	if req.IsActive != nil {
 		params.IsActive = pgtype.Bool{Bool: *req.IsActive, Valid: true}
 	}
-	if claims.IsSuperUser {
+	if req.IsSuperuser != nil {
 		params.IsSuperuser = pgtype.Bool{Bool: *req.IsSuperuser, Valid: true}
 	}
 	// Save updates

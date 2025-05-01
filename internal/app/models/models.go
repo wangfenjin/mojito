@@ -58,16 +58,7 @@ func Connect(params ConnectionParams) (*DB, error) {
 			Queries: queries,
 		}
 	})
-
-	if err != nil {
-		return nil, err // Return error if initialization failed
-	}
-	if globalDB == nil {
-		// This might happen if Connect is called again after the first successful call
-		// or if initialization failed silently (though the error check should prevent this).
-		return nil, fmt.Errorf("global database connection is not initialized")
-	}
-	return globalDB, nil
+	return globalDB, err
 }
 
 // GetDB returns the globally initialized database instance.

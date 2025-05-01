@@ -22,7 +22,7 @@ func RegisterItemsRoutes(r chi.Router) {
 
 		r.Post("/", middleware.WithHandler(createItemHandler))
 		r.Get("/{id}", middleware.WithHandler(getItemHandler))
-		r.Put("/{id}", middleware.WithHandler(updateItemHandler))
+		r.Patch("/{id}", middleware.WithHandler(updateItemHandler))
 		r.Delete("/{id}", middleware.WithHandler(deleteItemHandler))
 		r.Get("/", middleware.WithHandler(listItemsHandler))
 	})
@@ -105,7 +105,7 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		return nil, middleware.NewBadRequestError("invalid owner ID")
+		return nil, middleware.NewForbiddenError("invalid owner ID")
 	}
 
 	id, err := uuid.Parse(req.ID)
@@ -118,7 +118,7 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
 	if item.OwnerID != ownerID && !claims.IsSuperUser {
-		return nil, middleware.NewBadRequestError("item not found or access denied")
+		return nil, middleware.NewForbiddenError("item not found or access denied")
 	}
 
 	return &ItemResponse{
@@ -136,7 +136,7 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		return nil, middleware.NewBadRequestError("invalid owner ID")
+		return nil, middleware.NewForbiddenError("invalid owner ID")
 	}
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
@@ -148,7 +148,7 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
 	if item.OwnerID != ownerID && !claims.IsSuperUser {
-		return nil, middleware.NewBadRequestError("item not found or access denied")
+		return nil, middleware.NewForbiddenError("item not found or access denied")
 	}
 
 	item, err = db.UpdateItem(ctx, gen.UpdateItemParams{
