@@ -8,10 +8,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
-	"github.com/wangfenjin/mojito/internal/app/middleware"
-	"github.com/wangfenjin/mojito/internal/app/models"
-	"github.com/wangfenjin/mojito/internal/app/models/gen"
-	"github.com/wangfenjin/mojito/internal/app/utils"
+	"github.com/wangfenjin/mojito/common"
+	"github.com/wangfenjin/mojito/middleware"
+	"github.com/wangfenjin/mojito/models"
+	"github.com/wangfenjin/mojito/models/gen"
 )
 
 // RegisterItemsRoutes registers all item related routes
@@ -72,7 +72,7 @@ type ItemsResponse struct {
 
 // Update handlers to use the new response types
 func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
@@ -100,7 +100,7 @@ func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemRespons
 }
 
 func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
@@ -131,7 +131,7 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 }
 
 func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
@@ -170,7 +170,7 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 }
 
 func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	// Get user_id from context
@@ -204,7 +204,7 @@ func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageRespons
 }
 
 func listItemsHandler(ctx context.Context, req ListItemsRequest) (*ItemsResponse, error) {
-	claims := ctx.Value("claims").(*utils.Claims)
+	claims := ctx.Value("claims").(*common.Claims)
 	db := models.GetDB()
 
 	// Get user_id from context

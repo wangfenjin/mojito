@@ -29,23 +29,23 @@ watch:
 # Run tests
 test:
 	@echo "Running tests..."
-	@go test ./internal/... ./cmd/...
+	@go test ./...
 
 # Run tests with verbose output
 test-verbose:
 	@echo "Running tests with verbose output..."
-	@go test -v ./internal/... ./cmd/...
+	@go test -v ./...
 
 # Run tests with coverage report
 test-coverage:
 	@echo "Running tests with coverage report..."
-	@go test -cover ./internal/... ./cmd/...
+	@go test -cover ./...
 	@echo "For detailed coverage report, run: make test-coverage-html"
 
 # Generate HTML coverage report
 test-coverage-html:
 	@echo "Generating HTML coverage report..."
-	@go test -coverprofile=coverage.out ./internal/... ./cmd/...
+	@go test -coverprofile=coverage.out ./...
 	@go tool cover -html=coverage.out -o coverage.html
 	@echo "Coverage report generated: coverage.html"
 	@open coverage.html

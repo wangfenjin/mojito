@@ -5,8 +5,8 @@ import (
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/wangfenjin/mojito/internal/pkg/logger"
-	"github.com/wangfenjin/mojito/pkg/openapi"
+	"github.com/wangfenjin/mojito/common"
+	"github.com/wangfenjin/mojito/openapi"
 )
 
 // RegisterDocsRoutes registers routes for API documentation
@@ -22,7 +22,7 @@ func RegisterDocsRoutes(r chi.Router) {
 			// Generate OpenAPI spec
 			err := openapi.GenerateSwaggerJSON("./api/openapi.json")
 			if err != nil {
-				logger.GetLogger().Error("Failed to generate OpenAPI spec", "error", err)
+				common.GetLogger().Error("Failed to generate OpenAPI spec", "error", err)
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}

@@ -4,7 +4,7 @@ import (
 	"context"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/wangfenjin/mojito/internal/app/middleware"
+	"github.com/wangfenjin/mojito/middleware"
 )
 
 // RegisterUtilRoutes registers all utility related routes

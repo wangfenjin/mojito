@@ -1,5 +1,4 @@
-// Package logger provides a centralized logging mechanism for the application.
-package logger
+package common
 
 import (
 	"log/slog"
