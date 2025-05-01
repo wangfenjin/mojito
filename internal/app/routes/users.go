@@ -106,7 +106,7 @@ type UpdatePasswordRequest struct {
 func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, error) {
 	// Get current user ID from context
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -122,7 +122,7 @@ func deleteCurrentUserHandler(ctx context.Context, _ any) (*MessageResponse, err
 
 func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*MessageResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -164,7 +164,7 @@ func updatePasswordHandler(ctx context.Context, req UpdatePasswordRequest) (*Mes
 
 // Update handler functions
 func registerUserHandler(ctx context.Context, req RegisterUserRequest) (*UserResponse, error) {
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 	// Check if user with this email already exists
 	exists, err := db.IsUserEmailExists(ctx, req.Email)
 	if err != nil {
@@ -202,7 +202,7 @@ func registerUserHandler(ctx context.Context, req RegisterUserRequest) (*UserRes
 // Update response maps in other handlers to include phone_number
 func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*UserResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -231,7 +231,7 @@ func updateCurrentUserHandler(ctx context.Context, req UpdateUserMeRequest) (*Us
 // Update getCurrentUserHandler response
 func getCurrentUserHandler(ctx context.Context, _ any) (*UserResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	id, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -259,7 +259,7 @@ func getUserHandler(ctx context.Context, req GetUserRequest) (*UserResponse, err
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can get other users")
 	}
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
@@ -288,7 +288,7 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserRespons
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can update other users")
 	}
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
@@ -298,13 +298,16 @@ func updateUserHandler(ctx context.Context, req UpdateUserRequest) (*UserRespons
 	params := gen.UpdateUserParams{
 		ID: id,
 	}
+	if req.FullName != nil {
+		params.FullName = pgtype.Text{String: *req.FullName, Valid: true}
+	}
 	if req.Email != nil {
 		params.Email = pgtype.Text{String: *req.Email, Valid: true}
 	}
 	if req.IsActive != nil {
 		params.IsActive = pgtype.Bool{Bool: *req.IsActive, Valid: true}
 	}
-	if claims.IsSuperUser {
+	if req.IsSuperuser != nil {
 		params.IsSuperuser = pgtype.Bool{Bool: *req.IsSuperuser, Valid: true}
 	}
 	// Save updates
@@ -330,7 +333,7 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse
 	if !claims.IsSuperUser {
 		return nil, middleware.NewForbiddenError("only superusers can list users")
 	}
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Set default values for pagination
 	if req.Limit <= 0 {

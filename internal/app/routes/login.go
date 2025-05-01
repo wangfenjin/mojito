@@ -72,10 +72,10 @@ type HTMLContentResponse struct {
 
 // Login handlers with updated signatures
 func loginAccessTokenHandler(ctx context.Context, req LoginAccessTokenRequest) (*TokenResponse, error) {
-	userDB := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Get user by email
-	user, err := userDB.GetUserByEmail(ctx, req.Username)
+	user, err := db.GetUserByEmail(ctx, req.Username)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
 	}
@@ -127,10 +127,10 @@ func testTokenHandler(_ context.Context, req TestTokenRequest) (*TestTokenRespon
 }
 
 func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (*MessageResponse, error) {
-	userDB := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Check if user exists
-	_, err := userDB.GetUserByEmail(ctx, req.Email)
+	_, err := db.GetUserByEmail(ctx, req.Email)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user: %w", err)
 	}

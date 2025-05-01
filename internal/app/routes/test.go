@@ -34,7 +34,7 @@ type CreateSuperUserRequest struct {
 }
 
 func createSuperUserHandler(ctx context.Context, req CreateSuperUserRequest) (*MessageResponse, error) {
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	hashedPassword, err := utils.HashPassword(req.Password)
 	if err != nil {
@@ -81,7 +81,7 @@ func shutdownHandler(_ context.Context, _ EmptyRequest) (*MessageResponse, error
 }
 
 func cleanupHandler(ctx context.Context, _ EmptyRequest) (*MessageResponse, error) {
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	if err := db.WithTx(ctx, func(q *gen.Queries) error {
 		if err := q.CleanupItems(ctx); err != nil {

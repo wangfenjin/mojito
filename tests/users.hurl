@@ -50,6 +50,12 @@ jsonpath "$.email" == "test@example.com"
 jsonpath "$.full_name" == "Test User"
 jsonpath "$.id" == {{user_id}}
 
+# Get user not allowed for normal user
+GET {{host}}/api/v1/users/{{user_id}}
+Authorization: Bearer {{token}}
+
+HTTP 403
+
 # Update current user (with auth)
 PATCH {{host}}/api/v1/users/me
 Authorization: Bearer {{token}}
@@ -125,6 +131,29 @@ admin_token: jsonpath "$.access_token"
 [Asserts]
 jsonpath "$.access_token" exists
 jsonpath "$.token_type" == "bearer"
+
+# Update user is ok for super user
+PATCH {{host}}/api/v1/users/{{user_id}}
+Authorization: Bearer {{admin_token}}
+Content-Type: application/json
+{
+    "full_name": "Updated User By Admin"
+}
+
+HTTP 200
+[Asserts]
+jsonpath "$.full_name" == "Updated User By Admin"
+jsonpath "$.id" == {{user_id}}
+
+# Get user is ok for super user
+GET {{host}}/api/v1/users/{{user_id}}
+Authorization: Bearer {{admin_token}}
+
+HTTP 200
+[Asserts]
+jsonpath "$.email" == "test@example.com"
+jsonpath "$.full_name" == "Updated User By Admin"
+jsonpath "$.id" == {{user_id}}
 
 # List users as super user
 GET {{host}}/api/v1/users/

@@ -218,7 +218,7 @@ func RequireAuth() func(http.Handler) http.Handler {
 				respondWithError(w, NewUnauthorizedError(err.Error()))
 				return
 			}
-			db := r.Context().Value("database").(*models.DB)
+			db := models.GetDB()
 			userID, err := uuid.Parse(claims.UserID)
 			user, err := db.GetUserByID(r.Context(), userID)
 			if err != nil {

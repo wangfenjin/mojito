@@ -22,7 +22,7 @@ func RegisterItemsRoutes(r chi.Router) {
 
 		r.Post("/", middleware.WithHandler(createItemHandler))
 		r.Get("/{id}", middleware.WithHandler(getItemHandler))
-		r.Put("/{id}", middleware.WithHandler(updateItemHandler))
+		r.Patch("/{id}", middleware.WithHandler(updateItemHandler))
 		r.Delete("/{id}", middleware.WithHandler(deleteItemHandler))
 		r.Get("/", middleware.WithHandler(listItemsHandler))
 	})
@@ -73,7 +73,7 @@ type ItemsResponse struct {
 // Update handlers to use the new response types
 func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -101,11 +101,11 @@ func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemRespons
 
 func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		return nil, middleware.NewBadRequestError("invalid owner ID")
+		return nil, middleware.NewForbiddenError("invalid owner ID")
 	}
 
 	id, err := uuid.Parse(req.ID)
@@ -118,7 +118,7 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
 	if item.OwnerID != ownerID && !claims.IsSuperUser {
-		return nil, middleware.NewBadRequestError("item not found or access denied")
+		return nil, middleware.NewForbiddenError("item not found or access denied")
 	}
 
 	return &ItemResponse{
@@ -132,11 +132,11 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 
 func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
-		return nil, middleware.NewBadRequestError("invalid owner ID")
+		return nil, middleware.NewForbiddenError("invalid owner ID")
 	}
 	id, err := uuid.Parse(req.ID)
 	if err != nil {
@@ -148,7 +148,7 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 		return nil, fmt.Errorf("error getting item: %w", err)
 	}
 	if item.OwnerID != ownerID && !claims.IsSuperUser {
-		return nil, middleware.NewBadRequestError("item not found or access denied")
+		return nil, middleware.NewForbiddenError("item not found or access denied")
 	}
 
 	item, err = db.UpdateItem(ctx, gen.UpdateItemParams{
@@ -171,7 +171,7 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 
 func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Get user_id from context
 	ownerID, err := uuid.Parse(claims.UserID)
@@ -205,7 +205,7 @@ func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageRespons
 
 func listItemsHandler(ctx context.Context, req ListItemsRequest) (*ItemsResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Get user_id from context
 	ownerID, err := uuid.Parse(claims.UserID)
