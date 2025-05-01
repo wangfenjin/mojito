@@ -2,10 +2,11 @@
 package routes
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/wangfenjin/mojito/common"
+	"github.com/go-chi/httplog/v2"
 	"github.com/wangfenjin/mojito/openapi"
 )
 
@@ -18,11 +19,11 @@ func RegisterDocsRoutes(r chi.Router) {
 		})
 
 		// Serve Swagger UI using CDN
-		r.Get("/swagger/*", func(w http.ResponseWriter, _ *http.Request) {
+		r.Get("/swagger/*", func(w http.ResponseWriter, r *http.Request) {
 			// Generate OpenAPI spec
 			err := openapi.GenerateSwaggerJSON("./api/openapi.json")
 			if err != nil {
-				common.GetLogger().Error("Failed to generate OpenAPI spec", "error", err)
+				httplog.LogEntrySetField(r.Context(), "generate swagger error", slog.StringValue(err.Error()))
 				http.Error(w, "Internal Server Error", http.StatusInternalServerError)
 				return
 			}

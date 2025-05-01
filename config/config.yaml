@@ -36,5 +36,6 @@ email:
   fromName: Mojito App
 
 logging:
+  env: dev
   level: info
   file: ""

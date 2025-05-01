@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/httplog/v2"
 	"github.com/go-playground/validator/v10"
 	"github.com/google/uuid"
 	"github.com/wangfenjin/mojito/common"
@@ -22,13 +23,14 @@ var validate = validator.New()
 func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (Resp, error)) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		ctx := r.Context()
+		logger := httplog.LogEntry(ctx)
 
 		// Register handler for OpenAPI if not already registered
 		pattern := chi.RouteContext(ctx).RoutePattern()
 		if !openapi.Registered(r.Method, pattern) {
 			handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
 			openapi.RegisterHandler(r.Method, pattern, handlerName, reflect.TypeOf((*Req)(nil)).Elem(), reflect.TypeOf((*Resp)(nil)).Elem())
-			common.GetLogger().InfoContext(ctx, "Registering handler", "name", handlerName, "path", pattern, "method", r.Method)
+			logger.Info("Registering handler", "name", handlerName)
 		}
 
 		var req Req
@@ -55,7 +57,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 			contentType := r.Header.Get("Content-Type")
 			if contentType == "application/x-www-form-urlencoded" {
 				if err := r.ParseForm(); err != nil {
-					common.GetLogger().ErrorContext(ctx, "Form parse error", "error", err)
+					logger.Error("Form parse error", "error", err)
 					respondWithError(w, NewBadRequestError(err.Error()))
 					return
 				}
@@ -81,7 +83,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 				}
 			} else if r.Method != http.MethodGet && r.ContentLength > 0 {
 				if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-					common.GetLogger().ErrorContext(ctx, "Decode error", "error", err)
+					logger.Error("Decode error", "error", err)
 					respondWithError(w, NewBadRequestError(err.Error()))
 					return
 				}
@@ -159,7 +161,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 
 			// Validate request
 			if err := validate.Struct(req); err != nil {
-				common.GetLogger().ErrorContext(ctx, "Validation error", "error", err)
+				logger.Error("Validation error", "error", err)
 				respondWithError(w, NewBadRequestError(err.Error()))
 				return
 			}
@@ -168,7 +170,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		// Call handler
 		resp, err := handler(ctx, req)
 		if err != nil {
-			common.GetLogger().ErrorContext(ctx, "Handler error", "error", err)
+			logger.Error("Handler error", "error", err)
 			if apiErr, ok := err.(*APIError); ok {
 				respondWithError(w, apiErr)
 			} else {
@@ -181,7 +183,7 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
 		if err := json.NewEncoder(w).Encode(resp); err != nil {
-			common.GetLogger().ErrorContext(ctx, "Encode error", "error", err)
+			logger.Error("Encode error", "error", err)
 			respondWithError(w, NewBadRequestError(err.Error()))
 			return
 		}
