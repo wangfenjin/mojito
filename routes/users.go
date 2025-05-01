@@ -364,7 +364,6 @@ func listUsersHandler(ctx context.Context, req ListUsersRequest) (*UsersResponse
 			UpdatedAt:   user.UpdatedAt.Time,
 		}
 	}
-	fmt.Printf("userList: %v\n", userList)
 
 	return &UsersResponse{
 		Users: userList,

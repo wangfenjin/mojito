@@ -107,14 +107,14 @@ type TestTokenRequest struct {
 }
 
 // Update handler signatures to use pointer returns
-func testTokenHandler(_ context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
+func testTokenHandler(ctx context.Context, req TestTokenRequest) (*TestTokenResponse, error) {
 	// Get token from Authorization header
 	authHeader := req.Token
 	// Extract token from "Bearer <token>"
 	tokenString := string(authHeader[7:])
 	claims, err := common.ValidateToken(tokenString)
 	if err != nil {
-		common.GetLogger().Error("error validating token", "error", err)
+		common.GetLogger().ErrorContext(ctx, "error validating token", "error", err)
 		return nil, middleware.NewUnauthorizedError("invalid token")
 	}
 
