@@ -4,10 +4,17 @@ package models
 import (
 	"context"
 	"fmt"
+	"sync" // Import sync package for thread safety
 
 	"github.com/jackc/pgx/v5"
 	_ "github.com/jackc/pgx/v5/stdlib"
 	"github.com/wangfenjin/mojito/internal/app/models/gen"
+)
+
+// globalDB holds the global database connection instance
+var (
+	globalDB *DB
+	once     sync.Once // Use sync.Once to ensure Connect is called only once for initialization
 )
 
 // ConnectionParams holds the parameters for connecting to the database
@@ -27,25 +34,50 @@ type DB struct {
 	*gen.Queries
 }
 
-// Connect establishes a connection to the database
+// Connect establishes a connection to the database and initializes the global instance
 func Connect(params ConnectionParams) (*DB, error) {
-	dsn := fmt.Sprintf(
-		"postgres://%s:%s@%s:%d/%s?sslmode=%s&TimeZone=%s",
-		params.User, params.Password, params.Host, params.Port, params.DBName, params.SSLMode, params.TimeZone,
-	)
+	var err error
+	once.Do(func() { // Ensure this block runs only once
+		dsn := fmt.Sprintf(
+			"postgres://%s:%s@%s:%d/%s?sslmode=%s&TimeZone=%s",
+			params.User, params.Password, params.Host, params.Port, params.DBName, params.SSLMode, params.TimeZone,
+		)
 
-	conn, err := pgx.Connect(context.Background(), dsn)
+		conn, connErr := pgx.Connect(context.Background(), dsn)
+		if connErr != nil {
+			err = fmt.Errorf("failed to connect to PostgreSQL database: %w", connErr)
+			return
+		}
+
+		// Create queries with the database connection
+		queries := gen.New(conn)
+
+		// Assign the created DB instance to the global variable
+		globalDB = &DB{
+			Conn:    conn,
+			Queries: queries,
+		}
+	})
+
 	if err != nil {
-		return nil, fmt.Errorf("failed to connect to PostgreSQL database: %w", err)
+		return nil, err // Return error if initialization failed
 	}
+	if globalDB == nil {
+		// This might happen if Connect is called again after the first successful call
+		// or if initialization failed silently (though the error check should prevent this).
+		return nil, fmt.Errorf("global database connection is not initialized")
+	}
+	return globalDB, nil
+}
 
-	// Create queries with the database connection
-	queries := gen.New(conn)
-
-	return &DB{
-		Conn:    conn,
-		Queries: queries,
-	}, nil
+// GetDB returns the globally initialized database instance.
+// It panics if the database is not initialized.
+func GetDB() *DB {
+	if globalDB == nil {
+		// Or return an error: return nil, fmt.Errorf("database not initialized")
+		panic("database connection has not been initialized. Call Connect first.")
+	}
+	return globalDB
 }
 
 // WithTx executes a function within a transaction

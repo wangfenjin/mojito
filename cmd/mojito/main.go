@@ -2,7 +2,6 @@
 package main
 
 import (
-	"context"
 	"log"
 	"net/http"
 	"os"
@@ -27,7 +26,7 @@ func main() {
 	logger.GetLogger().Info("Configuration loaded", "config", cfg)
 
 	// Initialize database connection
-	db, err := models.Connect(models.ConnectionParams{
+	_, err = models.Connect(models.ConnectionParams{
 		Host:     cfg.Database.Host,
 		Port:     cfg.Database.Port,
 		User:     cfg.Database.User,
@@ -44,6 +43,7 @@ func main() {
 	r := chi.NewRouter()
 
 	// Add middleware
+	r.Use(middleware.RequestID)
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
@@ -54,15 +54,6 @@ func main() {
 		AllowCredentials: true,
 		MaxAge:           300,
 	}))
-
-	// Add middleware to inject repositories into context
-	r.Use(func(next http.Handler) http.Handler {
-		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			ctx := r.Context()
-			ctx = context.WithValue(ctx, "database", db)
-			next.ServeHTTP(w, r.WithContext(ctx))
-		})
-	})
 
 	// Set up API routes
 	routes.RegisterRoutes(r)

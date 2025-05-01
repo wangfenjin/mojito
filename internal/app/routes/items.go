@@ -73,7 +73,7 @@ type ItemsResponse struct {
 // Update handlers to use the new response types
 func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -101,7 +101,7 @@ func createItemHandler(ctx context.Context, req CreateItemRequest) (*ItemRespons
 
 func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -132,7 +132,7 @@ func getItemHandler(ctx context.Context, req GetItemRequest) (*ItemResponse, err
 
 func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	ownerID, err := uuid.Parse(claims.UserID)
 	if err != nil {
@@ -171,7 +171,7 @@ func updateItemHandler(ctx context.Context, req UpdateItemRequest) (*ItemRespons
 
 func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Get user_id from context
 	ownerID, err := uuid.Parse(claims.UserID)
@@ -205,7 +205,7 @@ func deleteItemHandler(ctx context.Context, req GetItemRequest) (*MessageRespons
 
 func listItemsHandler(ctx context.Context, req ListItemsRequest) (*ItemsResponse, error) {
 	claims := ctx.Value("claims").(*utils.Claims)
-	db := ctx.Value("database").(*models.DB)
+	db := models.GetDB()
 
 	// Get user_id from context
 	ownerID, err := uuid.Parse(claims.UserID)
