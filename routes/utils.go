@@ -20,6 +20,7 @@ type HealthCheckResponse struct {
 	Status bool `json:"status"`
 }
 
+// healthCheckHandler returns the health check response
 func healthCheckHandler(_ context.Context, _ any) (*HealthCheckResponse, error) {
 	return &HealthCheckResponse{Status: true}, nil
 }

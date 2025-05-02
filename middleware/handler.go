@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"reflect"
-	"runtime"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -25,13 +24,8 @@ func WithHandler[Req any, Resp any](handler func(ctx context.Context, req Req) (
 		ctx := r.Context()
 		logger := httplog.LogEntry(ctx)
 
-		// Register handler for OpenAPI if not already registered
 		pattern := chi.RouteContext(ctx).RoutePattern()
-		if !openapi.Registered(r.Method, pattern) {
-			handlerName := runtime.FuncForPC(reflect.ValueOf(handler).Pointer()).Name()
-			openapi.RegisterHandler(r.Method, pattern, handlerName, reflect.TypeOf((*Req)(nil)).Elem(), reflect.TypeOf((*Resp)(nil)).Elem())
-			logger.Info("Registering handler", "name", handlerName)
-		}
+		openapi.RegisterHandler(r.Method, pattern, handler)
 
 		var req Req
 		reqType := reflect.TypeOf(req)

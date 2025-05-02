@@ -124,6 +124,8 @@ func testTokenHandler(ctx context.Context, req TestTokenRequest) (*TestTokenResp
 	}, nil
 }
 
+// @summary Recover password
+// @tag login
 func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (*MessageResponse, error) {
 	db := models.GetDB()
 
@@ -140,6 +142,8 @@ func recoverPasswordHandler(ctx context.Context, req RecoverPasswordRequest) (*M
 	}, nil
 }
 
+// @summary Reset password
+// @tag login
 func resetPasswordHandler(_ context.Context, _ ResetPasswordRequest) (*MessageResponse, error) {
 	// TODO: Implement password reset logic with token validation
 	return &MessageResponse{
@@ -147,6 +151,8 @@ func resetPasswordHandler(_ context.Context, _ ResetPasswordRequest) (*MessageRe
 	}, nil
 }
 
+// @summary Get password recovery HTML content
+// @tag login
 func recoverPasswordHTMLContentHandler(_ context.Context, _ RecoverPasswordHTMLContentRequest) (*HTMLContentResponse, error) {
 	return &HTMLContentResponse{
 		HTMLContent: "<h1>Reset Your Password</h1><p>Click the link below to reset your password.</p>",

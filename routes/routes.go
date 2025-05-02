@@ -1,6 +1,9 @@
 package routes
 
-import "github.com/go-chi/chi/v5"
+import (
+	"github.com/go-chi/chi/v5"
+	"github.com/wangfenjin/mojito/openapi"
+)
 
 // RegisterRoutes registers all application routes
 func RegisterRoutes(r chi.Router) {
@@ -9,4 +12,6 @@ func RegisterRoutes(r chi.Router) {
 	RegisterUsersRoutes(r)
 	RegisterItemsRoutes(r)
 	RegisterDocsRoutes(r)
+
+	openapi.RegisterMws(r)
 }
