@@ -86,18 +86,14 @@ func GenerateSwaggerJSON(outputPath string) error {
 // generatePathsFromRegistry creates the paths section of the OpenAPI spec from the route registry
 func generatePathsFromRegistry() map[string]interface{} {
 	// Group routes by path
-	routesByPath := make(map[string][]handlerInfo)
-	for _, route := range handlerRegistry {
-		// Skip docs routes to avoid circular references
+	routesByPath := make(map[string][]FuncInfo)
+	for _, route := range handlerFuncs {
 		if strings.HasPrefix(route.Path, "/docs") {
 			continue
 		}
 
 		// Normalize path for OpenAPI
 		apiPath := strings.TrimPrefix(route.Path, SwaggerDoc.BasePath)
-		// Convert Hertz path params (:id) to OpenAPI path params ({id})
-		apiPath = convertPathParams(apiPath)
-
 		routesByPath[apiPath] = append(routesByPath[apiPath], route)
 	}
 
@@ -123,24 +119,21 @@ func generatePathsFromRegistry() map[string]interface{} {
 }
 
 // createOperationFromRouteInfo creates an operation object for a route
-func createOperationFromRouteInfo(route handlerInfo) map[string]interface{} {
+func createOperationFromRouteInfo(route FuncInfo) map[string]interface{} {
 	// Extract tag from route info
-	tag := route.Tags[0]
+	tag := route.Tag
 
 	// Default values
 	summary := route.Summary
-	description := route.Description
+	description := route.Comment
 
 	// Create extra fields for security if middleware includes auth
 	var extraFields map[string]interface{}
-	for _, middleware := range route.Middlewares {
-		if strings.Contains(middleware, "RequireAuth") {
-			extraFields = map[string]interface{}{
-				"security": []map[string][]string{
-					{"OAuth2PasswordBearer": {}},
-				},
-			}
-			break
+	if route.RequireAuth {
+		extraFields = map[string]interface{}{
+			"security": []map[string][]string{
+				{"OAuth2PasswordBearer": {}},
+			},
 		}
 	}
 
@@ -588,7 +581,7 @@ func generateComponents() map[string]interface{} {
 	schemas := make(map[string]interface{})
 
 	// Add schemas from route registry
-	for _, route := range handlerRegistry {
+	for _, route := range handlerFuncs {
 		// Add request type schema if available
 		if route.RequestType != nil {
 			addSchemas(schemas, route.RequestType)

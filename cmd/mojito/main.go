@@ -10,7 +10,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
 	"github.com/go-chi/httplog/v2"
 	"github.com/wangfenjin/mojito/common"
@@ -66,7 +65,7 @@ func main() {
 
 	// Add middleware
 	r.Use(httplog.RequestLogger(logger))
-	r.Use(middleware.Heartbeat("/ping"))
+	// r.Use(middleware.Heartbeat("/ping"))
 
 	r.Use(cors.Handler(cors.Options{
 		AllowedOrigins:   cfg.Server.AllowedOrigins,
