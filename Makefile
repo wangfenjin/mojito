@@ -2,6 +2,10 @@
 
 .PHONY: build run clean watch test test-verbose test-coverage
 
+sqlc:
+	@echo "Generating SQLC code..."
+	@sqlc generate -f ./models/sqlc.yaml
+
 # Build the mojito application
 build:
 	@echo "Building mojito..."

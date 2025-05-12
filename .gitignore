@@ -24,3 +24,5 @@
 tmp/
 bin/
 mojito.db
+
+api/fast*

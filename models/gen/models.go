@@ -5,9 +5,113 @@
 package gen
 
 import (
+	"database/sql/driver"
+	"fmt"
+
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgtype"
 )
+
+type AccountStatusEnum string
+
+const (
+	AccountStatusEnumACTIVE         AccountStatusEnum = "ACTIVE"
+	AccountStatusEnumINACTIVE       AccountStatusEnum = "INACTIVE"
+	AccountStatusEnumREQUIRESREAUTH AccountStatusEnum = "REQUIRES_REAUTH"
+	AccountStatusEnumSUSPENDED      AccountStatusEnum = "SUSPENDED"
+)
+
+func (e *AccountStatusEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = AccountStatusEnum(s)
+	case string:
+		*e = AccountStatusEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for AccountStatusEnum: %T", src)
+	}
+	return nil
+}
+
+type NullAccountStatusEnum struct {
+	AccountStatusEnum AccountStatusEnum
+	Valid             bool // Valid is true if AccountStatusEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullAccountStatusEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.AccountStatusEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.AccountStatusEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullAccountStatusEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.AccountStatusEnum), nil
+}
+
+type PlatformTypeEnum string
+
+const (
+	PlatformTypeEnumMETA      PlatformTypeEnum = "META"
+	PlatformTypeEnumGOOGLEADS PlatformTypeEnum = "GOOGLE_ADS"
+	PlatformTypeEnumTIKTOKADS PlatformTypeEnum = "TIKTOK_ADS"
+)
+
+func (e *PlatformTypeEnum) Scan(src interface{}) error {
+	switch s := src.(type) {
+	case []byte:
+		*e = PlatformTypeEnum(s)
+	case string:
+		*e = PlatformTypeEnum(s)
+	default:
+		return fmt.Errorf("unsupported scan type for PlatformTypeEnum: %T", src)
+	}
+	return nil
+}
+
+type NullPlatformTypeEnum struct {
+	PlatformTypeEnum PlatformTypeEnum
+	Valid            bool // Valid is true if PlatformTypeEnum is not NULL
+}
+
+// Scan implements the Scanner interface.
+func (ns *NullPlatformTypeEnum) Scan(value interface{}) error {
+	if value == nil {
+		ns.PlatformTypeEnum, ns.Valid = "", false
+		return nil
+	}
+	ns.Valid = true
+	return ns.PlatformTypeEnum.Scan(value)
+}
+
+// Value implements the driver Valuer interface.
+func (ns NullPlatformTypeEnum) Value() (driver.Value, error) {
+	if !ns.Valid {
+		return nil, nil
+	}
+	return string(ns.PlatformTypeEnum), nil
+}
+
+type AdAccount struct {
+	ID                uuid.UUID
+	PlatformAccountID string
+	Name              string
+	PlatformType      PlatformTypeEnum
+	Credentials       string
+	Status            AccountStatusEnum
+	OwnerUserID       pgtype.UUID
+	AdditionalConfig  []byte
+	CreatedAt         pgtype.Timestamptz
+	UpdatedAt         pgtype.Timestamptz
+	DeletedAt         pgtype.Timestamptz
+}
 
 type Item struct {
 	ID          uuid.UUID

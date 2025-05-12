@@ -3,8 +3,8 @@ servers:
   - engine: postgresql
     uri: "postgres://postgres:postgres@localhost:5432/mojito?sslmode=disable"
 sql:
-  - schema: schema.sql
-    queries: "*_query.sql"
+  - schema: "migrations"
+    queries: "queries"
     engine: postgresql
     database:
       managed: true
